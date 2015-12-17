@@ -21,7 +21,6 @@ func countLeadingZeroes(bits uint64) uint8 {
 }
 
 type encoder struct {
-	pos    int
 	bitPos int
 	buf    []byte
 
@@ -30,7 +29,7 @@ type encoder struct {
 
 func newEncoder() *encoder {
 	return &encoder{
-		pos:        0,
+		bitPos:     0,
 		buf:        make([]byte, encoderBuffer),
 		onHalfByte: false,
 	}
