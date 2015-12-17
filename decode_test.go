@@ -1,54 +1,52 @@
 package fpc
 
 import (
-	"math"
+	"reflect"
 	"testing"
 )
 
-func TestDecodeOne(t *testing.T) {
+func TestDecodePrefix(t *testing.T) {
+	type output struct {
+		n1, n2 uint8
+		p1, p2 predictorClass
+	}
 	testcases := []struct {
-		in   string
-		want uint64
+		in   byte
+		want output
 	}{
 		{
-			in:   "11110000",
-			want: 0,
+			in: binstr2byte("11101110"),
+			want: output{
+				n1: 7,
+				n2: 7,
+				p1: 0,
+				p2: 0,
+			},
 		},
 		{
-			in:   "11110001",
-			want: 1,
+			in: binstr2byte("11111110"),
+			want: output{
+				n1: 7,
+				n2: 7,
+				p1: 1,
+				p2: 0,
+			},
 		},
 		{
-			in:   "11110010",
-			want: 2,
-		},
-		{
-			in:   "11100001 10000000",
-			want: 24,
-		},
-		{
-			in:   "11010001 00000001",
-			want: 257,
-		},
-		{
-			in:   "11000001 00010000 00010000",
-			want: 4353,
-		},
-		{
-			in:   "00001111 11111111 11111111 11111111 11111111 11111111 11111111 11111111 11110000",
-			want: math.MaxUint64,
+			in: binstr2byte("01001111"),
+			want: output{
+				n1: 2,
+				n2: 7,
+				p1: 0,
+				p2: 1,
+			},
 		},
 	}
-
-	for _, tc := range testcases {
-		d := newDecoder()
-		have := d.decodeOneBitwise(binstr2bytes(tc.in))
-		if have != tc.want {
-			t.Errorf("encodeDiff error")
-			t.Logf("  in=%v", tc.in)
-			t.Logf("have=%v", have)
-			t.Logf("want=%v", tc.want)
+	for i, tc := range testcases {
+		var have output
+		have.n1, have.n2, have.p1, have.p2 = decodePrefix(tc.in)
+		if !reflect.DeepEqual(have, tc.want) {
+			t.Errorf("decodePrefix test=%d  have=%+v  want=%+v", i, have, tc.want)
 		}
 	}
-
 }

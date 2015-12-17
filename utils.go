@@ -46,6 +46,13 @@ func u642binstr(x uint64) string {
 	}
 	return insertNth(s, 8)
 }
+func u82binstr(x uint8) string {
+	s := strconv.FormatUint(uint64(x), 2)
+	for len(s) < 8 {
+		s = "0" + s
+	}
+	return s
+}
 
 func insertNth(s string, n int) string {
 	var buffer bytes.Buffer
@@ -66,4 +73,18 @@ func binstr2u64(s string) uint64 {
 		panic(err)
 	}
 	return val
+}
+
+func binstr2u8(s string) uint8 {
+	s = strings.Replace(s, " ", "", -1)
+
+	val, err := strconv.ParseUint(s, 2, 8)
+	if err != nil {
+		panic(err)
+	}
+	return uint8(val)
+}
+
+func binstr2byte(s string) byte {
+	return byte(binstr2u8(s))
 }
