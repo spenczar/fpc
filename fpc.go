@@ -8,31 +8,6 @@ import (
 
 const encoderBuffer = 1024 // initial size for encoder buffer
 
-// Returns true if the first n bits of x and y are the same
-func match(x, y float64, n int) bool {
-	return false
-}
-
-// func compress(predicted, actual float64, buf []byte) {
-// 	pbits := math.Float64bits(predicted)
-// 	abits := math.Float64bits(actual)
-
-// 	diffbits := pbits ^ abits
-// }
-
-// func compressUint64(predicted, actual uint64, buf []byte) {
-// 	// XOR the bits
-// 	diff := predicted ^ actual
-// }
-
-func compress(predicted, actual float64) {
-	// xor x and y, call this 'diff'. Count the leading zeroes of diff, and
-	// store the number/4 in a 4-bit unsigned int. Rest of the bytes encode the
-	// remaining bits after trimming the leading zeroes.
-	// diff := math.Float64bits(predicted) ^ math.Float64bits(actual)
-
-}
-
 func countLeadingZeroes(bits uint64) uint8 {
 	if bits == 0 {
 		return 64
