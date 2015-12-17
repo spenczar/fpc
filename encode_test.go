@@ -3,46 +3,8 @@ package fpc
 import (
 	"math"
 	"math/rand"
-	"strconv"
-	"strings"
 	"testing"
 )
-
-func binstr2u64(s string) uint64 {
-
-	s = strings.Join(strings.Split(s, " "), "")
-
-	val, err := strconv.ParseUint(s, 2, 64)
-	if err != nil {
-		panic(err)
-	}
-	return val
-}
-
-// func bytes2binstr(bs []byte) string {
-// 	var ss []string
-// 	for _, b := range bs {
-// 		s := strconv.FormatUint(uint64(b), 2)
-// 		for len(s) < 8 {
-// 			s = "0" + s
-// 		}
-// 		ss = append(ss, s)
-// 	}
-// 	return strings.Join(ss, " ")
-// }
-
-// func u642binstr(x uint64) string {
-// 	s := strconv.FormatUint(x, 2)
-// 	for len(s) < 64 {
-// 		s = "0" + s
-// 	}
-// 	for i := 0; i < 64; i+= 8 {
-// 		s = append(s, '')
-// 		copy(s[i+1:], s[i:])
-// 		s[i] = ' '
-// 	}
-// 	return s
-// }
 
 func TestCountLeadingZeroes(t *testing.T) {
 	testcases := []struct {

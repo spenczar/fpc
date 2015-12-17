@@ -1,11 +1,5 @@
 package fpc
 
-import (
-	"bytes"
-	"strconv"
-	"strings"
-)
-
 const encoderBuffer = 1024 // initial size for encoder buffer
 
 func countLeadingZeroes(bits uint64) uint8 {
@@ -140,35 +134,4 @@ func (e *encoder) encode(diff uint64) []byte {
 	// Update our position in buf
 	e.bitPos = e.bitPos + nBits
 	return buf
-}
-
-func bytes2binstr(bs []byte) string {
-	var ss []string
-	for _, b := range bs {
-		s := strconv.FormatUint(uint64(b), 2)
-		for len(s) < 8 {
-			s = "0" + s
-		}
-		ss = append(ss, s)
-	}
-	return strings.Join(ss, " ")
-}
-
-func u642binstr(x uint64) string {
-	s := strconv.FormatUint(x, 2)
-	for len(s) < 64 {
-		s = "0" + s
-	}
-	return insertNth(s, 8)
-}
-
-func insertNth(s string, n int) string {
-	var buffer bytes.Buffer
-	for i, rune := range s {
-		buffer.WriteRune(rune)
-		if i%n == n-1 && i != len(s)-1 {
-			buffer.WriteRune(' ')
-		}
-	}
-	return buffer.String()
 }
