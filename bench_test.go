@@ -46,3 +46,23 @@ func BenchmarkPairEncode(b *testing.B) {
 		e.encode(vals[i%n], vals[i%n])
 	}
 }
+
+func BenchmarkDecode(b *testing.B) {
+	e := newEncoder()
+	n := min(b.N, 1e6)
+	raw := generateValues(n)
+	encoded := make([][]byte, len(raw))
+
+	totalBytes := 0
+	for i := range raw {
+		encoded[i] = e.encode(raw[i%n], raw[(i*7%n+i*119%n)%n])
+		totalBytes += len(encoded[i])
+	}
+
+	b.SetBytes(int64(totalBytes / n))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		decodeOne(encoded[i%n])
+	}
+}
