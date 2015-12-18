@@ -101,3 +101,31 @@ func TestDecodeOne(t *testing.T) {
 		}
 	}
 }
+
+func TestDecodeBlockHeader(t *testing.T) {
+	testcases := []struct {
+		in   []byte
+		want blockHeader
+	}{
+		{
+			in: []byte{0x00, 0x80, 0x00, 0xb6, 0x35, 0x02},
+			want: blockHeader{
+				nRecords: 32768,
+				nBytes:   144822,
+			},
+		},
+		{
+			in: []byte{0x00, 0x80, 0x00, 0xc2, 0x43, 0x00},
+			want: blockHeader{
+				nRecords: 32768,
+				nBytes:   17346,
+			},
+		},
+	}
+	for i, tc := range testcases {
+		have := decodeBlockHeader(tc.in)
+		if !reflect.DeepEqual(have, tc.want) {
+			t.Errorf("decodeBlockHeader test=%d  have=%+v  want=%+v", i, have, tc.want)
+		}
+	}
+}
