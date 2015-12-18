@@ -89,6 +89,6 @@ func binstr2byte(s string) byte {
 	return byte(binstr2u8(s))
 }
 
-func isPowerOfTwo(i int) bool {
+func isPowerOfTwo(i uint) bool {
 	return (i & (i - 1)) == 0
 }

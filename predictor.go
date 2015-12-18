@@ -18,7 +18,7 @@ type fcm struct {
 	lastHash uint64
 }
 
-func newFCM(size int) *fcm {
+func newFCM(size uint) *fcm {
 	if !isPowerOfTwo(size) {
 		panic("invalid size, must be a power of two")
 	}
@@ -48,7 +48,7 @@ type dfcm struct {
 	lastValue uint64
 }
 
-func newDFCM(size int) *dfcm {
+func newDFCM(size uint) *dfcm {
 	if !isPowerOfTwo(size) {
 		panic("invalid size, must be a power of two")
 	}

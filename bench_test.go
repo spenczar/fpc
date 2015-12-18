@@ -35,7 +35,7 @@ func BenchmarkLeadingZeroBytes(b *testing.B) {
 }
 
 func BenchmarkPairEncode(b *testing.B) {
-	e := newEncoder()
+	e := newEncoder(5)
 
 	n := min(b.N, 1e6)
 	vals := generateValues(n)
@@ -48,7 +48,7 @@ func BenchmarkPairEncode(b *testing.B) {
 }
 
 func BenchmarkDecode(b *testing.B) {
-	e := newEncoder()
+	e := newEncoder(5)
 	n := min(b.N, 1e6)
 	raw := generateValues(n)
 	encoded := make([][]byte, len(raw))
