@@ -66,3 +66,25 @@ func BenchmarkDecode(b *testing.B) {
 		decodeOne(encoded[i%n])
 	}
 }
+
+func BenchmarkFCM(b *testing.B) {
+	n := min(b.N, 1e6)
+	vals := generateValues(n)
+	fcm := newFCM(32768)
+	b.SetBytes(8)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fcm.predict(vals[i%n])
+	}
+}
+
+func BenchmarkDFCM(b *testing.B) {
+	n := min(b.N, 1e6)
+	vals := generateValues(n)
+	fcm := newDFCM(32768)
+	b.SetBytes(8)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fcm.predict(vals[i%n])
+	}
+}
