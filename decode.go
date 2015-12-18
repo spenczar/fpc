@@ -54,16 +54,15 @@ type blockHeader struct {
 	nRecords, nBytes uint32
 }
 
-func decodeFirstBlock(bs []byte) (tableSize uint8, h blockHeader) {
+func decodeFirstBlock(bs []byte) (compression int, h blockHeader) {
 	// First byte encodes size of hash tables
-	tableSize = (1 << bs[0])
 	h = decodeBlockHeader(bs[1:])
-	return tableSize, h
+	return int(bs[0]), h
 }
 
 func decodeBlockHeader(bs []byte) blockHeader {
 	var h blockHeader
-	// Next three bytes encode the number of records
+	// First three bytes encode the number of records
 	h.nRecords = uint32(bs[2])
 	h.nRecords = (h.nRecords << 8) | uint32(bs[1])
 	h.nRecords = (h.nRecords << 8) | uint32(bs[0])

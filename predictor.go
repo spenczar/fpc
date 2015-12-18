@@ -19,9 +19,7 @@ type fcm struct {
 }
 
 func newFCM(size uint) *fcm {
-	if !isPowerOfTwo(size) {
-		panic("invalid size, must be a power of two")
-	}
+	// size must be a power of two
 	return &fcm{
 		table: make([]uint64, size, size),
 		size:  uint64(size),
@@ -49,9 +47,7 @@ type dfcm struct {
 }
 
 func newDFCM(size uint) *dfcm {
-	if !isPowerOfTwo(size) {
-		panic("invalid size, must be a power of two")
-	}
+	// size must be a power of two
 	return &dfcm{
 		table: make([]uint64, size, size),
 		size:  uint64(size),
