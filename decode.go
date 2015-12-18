@@ -13,7 +13,8 @@ func newDecoder() *decoder {
 }
 
 func decodePrefix(b byte) (nzero1, nzero2 uint8, p1, p2 predictorClass) {
-	nzero1, nzero2 = uint8((b&0xE0)>>5), uint8(b&0x0E>>1)
+	// top bit and 5th bit are indicators for predictor classes
+	nzero1, nzero2 = uint8((b&0x70)>>4), uint8(b&0x07)
 	// See the comment in encoder.prefixCode.
 	if nzero1 >= 4 {
 		nzero1 += 1
@@ -21,7 +22,7 @@ func decodePrefix(b byte) (nzero1, nzero2 uint8, p1, p2 predictorClass) {
 	if nzero2 >= 4 {
 		nzero2 += 1
 	}
-	p1, p2 = predictorClass((b&0x10)>>4), predictorClass(b&0x01)
+	p1, p2 = predictorClass((b&0x80)>>7), predictorClass(b&0x08>>3)
 	return
 }
 
@@ -38,14 +39,54 @@ func decodeOne(b []byte) (nRead int, v1, v2 uint64) {
 	return end, v1, v2
 }
 
-func decodeData(bs []byte) (v uint64) {
-	last := len(bs) - 1
-	for i, b := range bs {
-		v |= uint64(b)
-		if i == last {
-			break
-		}
-		v <<= 8
+func decodeData(b []byte) (v uint64) {
+	// Decode b as a partial little-endian uint64
+	switch len(b) {
+	case 8:
+		v = (uint64(b[0]) |
+			uint64(b[1])<<8 |
+			uint64(b[2])<<16 |
+			uint64(b[3])<<24 |
+			uint64(b[4])<<32 |
+			uint64(b[5])<<40 |
+			uint64(b[6])<<48 |
+			uint64(b[7])<<56)
+	case 7:
+		v = (uint64(b[0]) |
+			uint64(b[1])<<8 |
+			uint64(b[2])<<16 |
+			uint64(b[3])<<24 |
+			uint64(b[4])<<32 |
+			uint64(b[5])<<40 |
+			uint64(b[6])<<48)
+	case 6:
+		v = (uint64(b[0]) |
+			uint64(b[1])<<8 |
+			uint64(b[2])<<16 |
+			uint64(b[3])<<24 |
+			uint64(b[4])<<32 |
+			uint64(b[5])<<40)
+	case 5:
+		v = (uint64(b[0]) |
+			uint64(b[1])<<8 |
+			uint64(b[2])<<16 |
+			uint64(b[3])<<24 |
+			uint64(b[4])<<32)
+	case 4:
+		v = (uint64(b[0]) |
+			uint64(b[1])<<8 |
+			uint64(b[2])<<16 |
+			uint64(b[3])<<24)
+	case 3:
+		v = (uint64(b[0]) |
+			uint64(b[1])<<8 |
+			uint64(b[2])<<16)
+	case 2:
+		v = (uint64(b[0]) |
+			uint64(b[1])<<8)
+	case 1:
+		v = uint64(b[0])
+		// case 0: leave v as 0
 	}
 	return v
 }

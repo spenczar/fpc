@@ -2,6 +2,7 @@ package fpc
 
 import (
 	"bytes"
+	"encoding/binary"
 	"reflect"
 	"testing"
 )
@@ -12,12 +13,12 @@ func TestPrefixCode(t *testing.T) {
 		nZeroBytes uint64
 	}
 	testcases := []struct {
-		in   string
+		in   []byte
 		p    predictorClass
 		want output
 	}{
 		{
-			in: "11111111 00000000 00000000 00000000  00000000 00000000 00000000 10000000",
+			in: []byte{0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF},
 			p:  fcmPredictor,
 			want: output{
 				code:       binstr2u8("0000"),
@@ -25,50 +26,50 @@ func TestPrefixCode(t *testing.T) {
 			},
 		},
 		{
-			in: "11111111 00000000 00000000 00000000  00000000 00000000 00000000 10000000",
+			in: []byte{0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF},
 			p:  dfcmPredictor,
 			want: output{
-				code:       binstr2u8("0001"),
+				code:       binstr2u8("1000"),
 				nZeroBytes: 0,
 			},
 		},
 		{
-			in: "00000000 11111111 00000000 00000000  00000000 00000000 00000000 10000000",
+			in: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00},
 			p:  fcmPredictor,
 			want: output{
-				code:       binstr2u8("0010"),
+				code:       binstr2u8("0001"),
 				nZeroBytes: 1,
 			},
 		},
 		{
-			in: "00000000 00000000 00000000 11111111  00000000 00000000 00000000 10000000",
+			in: []byte{0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00},
 			p:  fcmPredictor,
 			want: output{
-				code:       binstr2u8("0110"),
+				code:       binstr2u8("0011"),
 				nZeroBytes: 3,
 			},
 		},
 		{
-			in: "00000000 00000000 00000000 00000000  11111111 00000000 00000000 10000000",
+			in: []byte{0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00},
 			p:  fcmPredictor,
 			want: output{
-				code:       binstr2u8("0110"),
+				code:       binstr2u8("0011"),
 				nZeroBytes: 3,
 			},
 		},
 		{
-			in: "00000000 00000000 00000000 00000000  00000000 11111111 00000000 10000000",
+			in: []byte{0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00},
 			p:  fcmPredictor,
 			want: output{
-				code:       binstr2u8("1000"),
+				code:       binstr2u8("0100"),
 				nZeroBytes: 5,
 			},
 		},
 		{
-			in: "00000000 00000000 00000000 00000000  00000000 00000000 00000000 00000000",
+			in: []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			p:  fcmPredictor,
 			want: output{
-				code:       binstr2u8("1110"),
+				code:       binstr2u8("0111"),
 				nZeroBytes: 8,
 			},
 		},
@@ -77,7 +78,7 @@ func TestPrefixCode(t *testing.T) {
 	for i, tc := range testcases {
 		e := newEncoder(defaultCompression)
 		have := output{}
-		have.code, have.nZeroBytes = e.prefixCode(binstr2u64(tc.in), tc.p)
+		have.code, have.nZeroBytes = e.prefixCode(binary.LittleEndian.Uint64(tc.in), tc.p)
 		if !reflect.DeepEqual(tc.want, have) {
 			t.Errorf("prefixCode test=%d  have.code=%s have.n=%d want.code=%s want.n=%d", i,
 				u82binstr(have.code), have.nZeroBytes,
@@ -88,48 +89,48 @@ func TestPrefixCode(t *testing.T) {
 
 func TestEncodeNonzero(t *testing.T) {
 	type input struct {
-		val   string
+		val   []byte
 		nZero uint64
 	}
 	testcases := []struct {
 		in   input
-		want string
+		want []byte
 	}{
 		{
 			in: input{
-				val:   "11111111 00000000 00000000 00000000  00000000 00000000 00000000 10000000",
+				val:   []byte{0xFF, 0, 0, 0, 0, 0, 0, 0XFF},
 				nZero: 0,
 			},
-			want: "11111111 00000000 00000000 00000000  00000000 00000000 00000000 10000000",
+			want: []byte{0xFF, 0, 0, 0, 0, 0, 0, 0XFF},
 		},
 		{
 			in: input{
-				val:   "00000000 11111111 00000000 00000000  00000000 00000000 00000000 10000000",
+				val:   []byte{0xFF, 0, 0, 0, 0, 0, 0xFF, 0},
 				nZero: 1,
 			},
-			want: "11111111 00000000 00000000  00000000 00000000 00000000 10000000",
+			want: []byte{0xFF, 0, 0, 0, 0, 0, 0xFF},
 		},
 		{
 			in: input{
-				val:   "00000000 00000000 00000000 00000000  00000000 00000000 00000000 10101010",
+				val:   []byte{0xAA, 0, 0, 0, 0, 0, 0, 0},
 				nZero: 7,
 			},
-			want: "10101010",
+			want: []byte{0xAA},
 		},
 		{
 			in: input{
-				val:   "00000000 00000000 00000000 00000000  10101010 00000000 00000000 10101010",
+				val:   []byte{0xAA, 0, 0, 0, 0xAA, 0, 0, 0},
 				nZero: 3,
 			},
-			want: "00000000 10101010 00000000 00000000  10101010",
+			want: []byte{0xAA, 0, 0, 0, 0xAA},
 		},
 	}
 
 	for i, tc := range testcases {
 		e := newEncoder(defaultCompression)
 		have := make([]byte, 8-tc.in.nZero)
-		e.encodeNonzero(binstr2u64(tc.in.val), tc.in.nZero, have)
-		if !bytes.Equal(have, binstr2bytes(tc.want)) {
+		e.encodeNonzero(byteOrder.Uint64(tc.in.val), tc.in.nZero, have)
+		if !bytes.Equal(have, tc.want) {
 			t.Errorf("encodeNonzero test=%d", i)
 			t.Logf("have=%s", bytes2binstr(have))
 			t.Logf("want=%s", tc.want)
@@ -139,32 +140,32 @@ func TestEncodeNonzero(t *testing.T) {
 
 func TestPairEncode(t *testing.T) {
 	testcases := []struct {
-		v1, v2 string
+		v1, v2 []byte
 		want   string
 	}{
 		{
-			v1:   "00000000 00000000 00000000 00000000  00000000 00000000 00000000 00000000",
-			v2:   "00000000 00000000 00000000 00000000  00000000 00000000 00000000 00000000",
-			want: "11101110",
+			v1:   []byte{0, 0, 0, 0, 0, 0, 0, 0},
+			v2:   []byte{0, 0, 0, 0, 0, 0, 0, 0},
+			want: "01110111",
 		},
 		{
-			v1:   "00000000 00000000 00000000 00000000  00000000 00000000 00000000 00000001",
-			v2:   "00000000 00000000 00000000 00000000  00000000 00000000 00000000 00000001",
-			want: "11001100 00000001 00000001",
+			v1:   []byte{1, 0, 0, 0, 0, 0, 0, 0},
+			v2:   []byte{1, 0, 0, 0, 0, 0, 0, 0},
+			want: "01100110 00000001 00000001",
 		},
 		{
-			v1:   "00000000 00000000 00000000 00000000  00000000 00000000 00000000 00000000",
-			v2:   "00000000 00000000 00000000 00000000  00000000 00000000 00000000 00000001",
-			want: "11101100 00000001",
+			v1:   []byte{0, 0, 0, 0, 0, 0, 0, 0},
+			v2:   []byte{1, 0, 0, 0, 0, 0, 0, 0},
+			want: "01110110 00000001",
 		},
 		{
-			v1:   "00000000 00000000 00000000 11111111  11111111 00000000 00000000 00000000",
-			v2:   "00000000 00000000 00000000 00000000  00000000 00000000 00000000 00000001",
-			want: "01101100 11111111 11111111 00000000  00000000 00000000 00000001",
+			v1:   []byte{0, 0, 0, 0xFF, 0xFF, 0, 0, 0},
+			v2:   []byte{1, 0, 0, 0, 0, 0, 0, 0},
+			want: "00110110 00000000 00000000 00000000  11111111 11111111 00000001",
 		},
 		{
-			v1: "11111111 11111111 11111111 11111111  11111111 11111111 11111111 11111111",
-			v2: "11111111 11111111 11111111 11111111  11111111 11111111 11111111 11111111",
+			v1: []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+			v2: []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
 			want: "00000000 11111111 11111111 11111111  11111111 11111111 11111111 11111111 " +
 				"11111111 11111111 11111111 11111111  11111111 11111111 11111111 11111111 " +
 				"11111111",
@@ -174,7 +175,7 @@ func TestPairEncode(t *testing.T) {
 		e := newEncoder(defaultCompression)
 		e.fcm = &mockPredictor{0}
 		e.dfcm = &mockPredictor{0}
-		have := e.encode(binstr2u64(tc.v1), binstr2u64(tc.v2))
+		have := e.encode(byteOrder.Uint64(tc.v1), byteOrder.Uint64(tc.v2))
 		if !bytes.Equal(have, binstr2bytes(tc.want)) {
 			t.Errorf("encode test=%d", i)
 			t.Logf("have=%s", bytes2binstr(have))

@@ -2,6 +2,7 @@ package fpc
 
 import (
 	"bytes"
+	"encoding/binary"
 	"strconv"
 	"strings"
 )
@@ -37,6 +38,10 @@ func binstr2bytes(s string) []byte {
 		s = s[end:]
 	}
 	return bs
+}
+
+func bytes2u64(b []byte) uint64 {
+	return binary.LittleEndian.Uint64(b)
 }
 
 func u642binstr(x uint64) string {

@@ -15,7 +15,7 @@ func TestDecodePrefix(t *testing.T) {
 		want output
 	}{
 		{
-			in: binstr2byte("11101110"),
+			in: binstr2byte("01110111"),
 			want: output{
 				n1: 8,
 				n2: 8,
@@ -24,7 +24,7 @@ func TestDecodePrefix(t *testing.T) {
 			},
 		},
 		{
-			in: binstr2byte("11111110"),
+			in: binstr2byte("11110111"),
 			want: output{
 				n1: 8,
 				n2: 8,
@@ -33,7 +33,7 @@ func TestDecodePrefix(t *testing.T) {
 			},
 		},
 		{
-			in: binstr2byte("01001111"),
+			in: binstr2byte("00101111"),
 			want: output{
 				n1: 2,
 				n2: 8,
@@ -61,7 +61,7 @@ func TestDecodeOne(t *testing.T) {
 		want output
 	}{
 		{
-			in: "11101110",
+			in: "01110111",
 			want: output{
 				n:  1,
 				v1: 0,
@@ -69,7 +69,7 @@ func TestDecodeOne(t *testing.T) {
 			},
 		},
 		{
-			in: "11101100 00000001",
+			in: "01110110 00000001",
 			want: output{
 				n:  2,
 				v1: 0,
@@ -77,7 +77,7 @@ func TestDecodeOne(t *testing.T) {
 			},
 		},
 		{
-			in: "11001100 00000001 00000001",
+			in: "01100110 00000001 00000001",
 			want: output{
 				n:  3,
 				v1: 1,
@@ -85,10 +85,10 @@ func TestDecodeOne(t *testing.T) {
 			},
 		},
 		{
-			in: "01101100 11111111 11111111 00000000  00000000 00000000 00000001",
+			in: "00110110 11111111 11111111 00000000  00000000 00000000 00000001",
 			want: output{
 				n:  7,
-				v1: 1099494850560,
+				v1: 65535,
 				v2: 1,
 			},
 		},

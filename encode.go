@@ -47,7 +47,7 @@ func (e *encoder) encode(v1, v2 uint64) []byte {
 	// First byte contains prefixes for the values
 	e.buf[0] = d1Prefix<<4 | d2Prefix
 
-	e.encodeNonzero(d1, d1NZero, e.buf[1:])
+	e.encodeNonzero(d1, d1NZero, e.buf[1:8-d1NZero+1])
 	e.encodeNonzero(d2, d2NZero, e.buf[1+(8-d1NZero):])
 	return e.buf[:1+(8-d1NZero)+(8-d2NZero)]
 }
@@ -59,53 +59,55 @@ func (e *encoder) encodeNonzero(v uint64, nZero uint64, into []byte) {
 
 	switch nZero {
 	case 0:
-		into[0] = byte((v >> 56) & 0xFF)
-		into[1] = byte((v >> 48) & 0xFF)
-		into[2] = byte((v >> 40) & 0xFF)
-		into[3] = byte((v >> 32) & 0xFF)
-		into[4] = byte((v >> 24) & 0xFF)
-		into[5] = byte((v >> 16) & 0xFF)
-		into[6] = byte((v >> 8) & 0xFF)
-		into[7] = byte(v & 0xFF)
-	case 1:
-		into[0] = byte((v >> 48) & 0xFF)
-		into[1] = byte((v >> 40) & 0xFF)
-		into[2] = byte((v >> 32) & 0xFF)
-		into[3] = byte((v >> 24) & 0xFF)
-		into[4] = byte((v >> 16) & 0xFF)
-		into[5] = byte((v >> 8) & 0xFF)
-		into[6] = byte(v & 0xFF)
-	case 2:
-		into[0] = byte((v >> 40) & 0xFF)
-		into[1] = byte((v >> 32) & 0xFF)
-		into[2] = byte((v >> 24) & 0xFF)
-		into[3] = byte((v >> 16) & 0xFF)
-		into[4] = byte((v >> 8) & 0xFF)
-		into[5] = byte(v & 0xFF)
-	case 3:
-		into[0] = byte((v >> 32) & 0xFF)
-		into[1] = byte((v >> 24) & 0xFF)
-		into[2] = byte((v >> 16) & 0xFF)
-		into[3] = byte((v >> 8) & 0xFF)
-		into[4] = byte(v & 0xFF)
-	case 4:
-		into[0] = byte((v >> 24) & 0xFF)
-		into[1] = byte((v >> 16) & 0xFF)
-		into[2] = byte((v >> 8) & 0xFF)
-		into[3] = byte(v & 0xFF)
-	case 5:
-		into[0] = byte((v >> 16) & 0xFF)
+		into[0] = byte(v & 0xFF)
 		into[1] = byte((v >> 8) & 0xFF)
-		into[2] = byte(v & 0xFF)
+		into[2] = byte((v >> 16) & 0xFF)
+		into[3] = byte((v >> 24) & 0xFF)
+		into[4] = byte((v >> 32) & 0xFF)
+		into[5] = byte((v >> 40) & 0xFF)
+		into[6] = byte((v >> 48) & 0xFF)
+		into[7] = byte((v >> 56) & 0xFF)
+	case 1:
+		into[0] = byte(v & 0xFF)
+		into[1] = byte((v >> 8) & 0xFF)
+		into[2] = byte((v >> 16) & 0xFF)
+		into[3] = byte((v >> 24) & 0xFF)
+		into[4] = byte((v >> 32) & 0xFF)
+		into[5] = byte((v >> 40) & 0xFF)
+		into[6] = byte((v >> 48) & 0xFF)
+	case 2:
+		into[0] = byte(v & 0xFF)
+		into[1] = byte((v >> 8) & 0xFF)
+		into[2] = byte((v >> 16) & 0xFF)
+		into[3] = byte((v >> 24) & 0xFF)
+		into[4] = byte((v >> 32) & 0xFF)
+		into[5] = byte((v >> 40) & 0xFF)
+	case 3:
+		into[0] = byte(v & 0xFF)
+		into[1] = byte((v >> 8) & 0xFF)
+		into[2] = byte((v >> 16) & 0xFF)
+		into[3] = byte((v >> 24) & 0xFF)
+		into[4] = byte((v >> 32) & 0xFF)
+	case 4:
+		into[0] = byte(v & 0xFF)
+		into[1] = byte((v >> 8) & 0xFF)
+		into[2] = byte((v >> 16) & 0xFF)
+		into[3] = byte((v >> 24) & 0xFF)
+	case 5:
+		into[0] = byte(v & 0xFF)
+		into[1] = byte((v >> 8) & 0xFF)
+		into[2] = byte((v >> 16) & 0xFF)
 	case 6:
-		into[0] = byte((v >> 8) & 0xFF)
-		into[1] = byte(v & 0xFF)
+		into[0] = byte(v & 0xFF)
+		into[1] = byte((v >> 8) & 0xFF)
 	case 7:
 		into[0] = byte(v & 0xFF)
 	}
 }
 
-// Compute 4-bit header for the value
+// Compute 4-bit header for the value. The first bit tells which predictor was
+// used; the next three bits tell how many leading zero bytes there are for the
+// value.
 func (e *encoder) prefixCode(v uint64, p predictorClass) (code uint8, nZeroBytes uint64) {
 	z := clzBytes(v)
 
@@ -129,9 +131,9 @@ func (e *encoder) prefixCode(v uint64, p predictorClass) (code uint8, nZeroBytes
 		zOrig -= 1
 	}
 	if p == fcmPredictor {
-		return uint8(z<<1 | 0), zOrig
+		return uint8(z), zOrig
 	} else {
-		return uint8(z<<1 | 1), zOrig
+		return uint8(z | 0x8), zOrig
 	}
 }
 
