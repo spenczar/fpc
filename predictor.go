@@ -35,6 +35,7 @@ func (f *fcm) hash(actual uint64) uint64 {
 func (f *fcm) predict() uint64 {
 	return f.table[f.lastHash]
 }
+
 func (f *fcm) update(actual uint64) {
 	f.table[f.lastHash] = actual
 	f.lastHash = f.hash(actual)
@@ -64,6 +65,7 @@ func (d *dfcm) hash(actual uint64) uint64 {
 func (d *dfcm) predict() uint64 {
 	return d.table[d.lastHash] + d.lastValue
 }
+
 func (d *dfcm) update(actual uint64) {
 	d.table[d.lastHash] = actual - d.lastValue
 	d.lastHash = d.hash(actual)
