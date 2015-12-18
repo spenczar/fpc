@@ -1,6 +1,107 @@
 package fpc
 
-const encoderBuffer = 1024 // initial size for encoder buffer
+import (
+	"encoding/binary"
+	"io"
+	"math"
+)
+
+const (
+	encoderBuffer      = 1024 // initial size for encoder buffer
+	defaultCompression = 10
+	defaultBlockSize   = 32768
+
+	blockHeaderSize = 6 // in bytes
+)
+
+var byteOrder = binary.LittleEndian
+
+type blockEncoder struct {
+	buf       []byte // Internal buffer of encoded values
+	blockSize int    // size of blocks in bytes
+
+	w   io.Writer // Destination for encoded bytes
+	enc *encoder  // Underlying machinery for encoding pairs of floats
+
+	// Mutable state below
+	last     float64 // last value received to encode
+	nRecords int     // Count of float64s received in this block
+}
+
+func newBlockEncoder(w io.Writer, compression uint) *blockEncoder {
+	return &blockEncoder{
+		buf:       make([]byte, 0, defaultBlockSize),
+		blockSize: defaultBlockSize,
+		w:         w,
+		enc:       newEncoder(compression),
+		last:      0,
+		nRecords:  0,
+	}
+}
+
+func (b *blockEncoder) encode(f float64) error {
+	// Encode floats in pairs
+	if b.nRecords%2 == 1 {
+		b.last = f
+		b.nRecords += 1
+		return nil
+	}
+
+	encoded := b.enc.encode(math.Float64bits(b.last), math.Float64bits(f))
+
+	// If the encoded data would overflow our buffer, then flush first
+	if len(encoded)+len(b.buf) > cap(b.buf) {
+		if err := b.flush(); err != nil {
+			return err
+		}
+	}
+
+	// Append data to the block
+	b.buf = append(b.buf, encoded...)
+	b.nRecords += 1
+
+	return nil
+}
+
+func (b *blockEncoder) flush() error {
+	// Prepend data with header
+	block := b.encodeBlock()
+
+	// Write data out
+	n, err := b.w.Write(block)
+	if err != nil {
+		return err
+	}
+	if n < len(block) {
+		return io.ErrShortWrite
+	}
+
+	// Reset buffer and counters
+	b.buf = make([]byte, 0, b.blockSize)
+	b.nRecords = 0
+	return nil
+}
+
+func (b *blockEncoder) encodeBlock() []byte {
+	// The header is layed out as two little-endian 24-bit unsigned
+	// integers. The first integer is the number of records in the block, and
+	// the second is the number of bytes.
+	h := make([]byte, blockHeaderSize)
+
+	//First three bytes are the number of records in the block.
+	h[0] = byte(b.nRecords)
+	h[1] = byte(b.nRecords >> 8)
+	h[2] = byte(b.nRecords >> 16)
+
+	// Next three bytes are the number of bytes in the block.
+	nByte := len(b.buf) + blockHeaderSize
+	h[3] = byte(nByte)
+	h[4] = byte(nByte >> 8)
+	h[5] = byte(nByte >> 16)
+
+	// After the header is all the rest of the data.
+	return append(h, b.buf...)
+}
 
 type encoder struct {
 	buf []byte

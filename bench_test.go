@@ -1,6 +1,7 @@
 package fpc
 
 import (
+	"io/ioutil"
 	"math"
 	"math/rand"
 	"testing"
@@ -22,40 +23,54 @@ func min(x, y int) int {
 	return x
 }
 
-func BenchmarkLeadingZeroBytes(b *testing.B) {
-	n := min(b.N, 1e6)
-	vals := generateValues(n)
+func BenchmarkBlockEncode(b *testing.B) {
+	w := ioutil.Discard
+	e := newBlockEncoder(w, defaultCompression)
+	e.enc.fcm = &mockPredictor{0xFABF}
+	e.enc.dfcm = &mockPredictor{0xFABF}
 	b.SetBytes(8)
-	b.ResetTimer()
-
-	v := vals[2%b.N]
 	for i := 0; i < b.N; i++ {
-		clzBytes(v)
+		e.encode(0xFAFF * float64(i))
+	}
+}
+
+func BenchmarkLeadingZeroBytes(b *testing.B) {
+	b.SetBytes(8)
+	for i := 0; i < b.N; i++ {
+		clzBytes(uint64(i * 0xDEADBEEF))
 	}
 }
 
 func BenchmarkPairEncode(b *testing.B) {
-	e := newEncoder(5)
-
-	n := min(b.N, 1e6)
-	vals := generateValues(n)
+	e := newEncoder(defaultCompression)
+	e.fcm = &mockPredictor{0xFABF}
+	e.dfcm = &mockPredictor{0xFABF}
 	b.SetBytes(16)
 	b.ResetTimer()
-
 	for i := 0; i < b.N; i++ {
-		e.encode(vals[i%n], vals[i%n])
+		e.encode(0xFAFF*uint64(i), 0x1234*uint64(i))
+	}
+}
+
+func BenchmarkEncodeNonzero(b *testing.B) {
+	e := newEncoder(defaultCompression)
+	buf := make([]byte, 8)
+	b.SetBytes(8)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		e.encodeNonzero(uint64(i), uint64(i)%8, buf)
 	}
 }
 
 func BenchmarkDecode(b *testing.B) {
-	e := newEncoder(5)
+	e := newEncoder(defaultCompression)
 	n := min(b.N, 1e6)
 	raw := generateValues(n)
 	encoded := make([][]byte, len(raw))
 
 	totalBytes := 0
 	for i := range raw {
-		encoded[i] = e.encode(raw[i%n], raw[(i*7%n+i*119%n)%n])
+		encoded[i] = e.encode(0xFAFF*uint64(i), 0x1234*uint64(i))
 		totalBytes += len(encoded[i])
 	}
 
@@ -67,26 +82,32 @@ func BenchmarkDecode(b *testing.B) {
 	}
 }
 
+func BenchmarkComputeDiff(b *testing.B) {
+	e := newEncoder(defaultCompression)
+	b.SetBytes(8)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		e.computeDiff(uint64(i))
+	}
+}
+
 func BenchmarkFCM(b *testing.B) {
-	n := min(b.N, 1e6)
-	vals := generateValues(n)
-	fcm := newFCM(32768)
+	fcm := newFCM(1 << defaultCompression)
 	b.SetBytes(8)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		fcm.predict()
-		fcm.update(vals[i%n])
+		fcm.update(0xFAFF)
 	}
 }
 
 func BenchmarkDFCM(b *testing.B) {
-	n := min(b.N, 1e6)
-	vals := generateValues(n)
-	dfcm := newDFCM(32768)
+	dfcm := newDFCM(1 << defaultCompression)
 	b.SetBytes(8)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		dfcm.predict()
-		dfcm.update(vals[i%n])
+		dfcm.update(0xFAFF)
 	}
 }

@@ -7,6 +7,40 @@ import (
 	"testing"
 )
 
+func TestBlockEncoder(t *testing.T) {
+	testcases := []struct {
+		comp uint
+		vals []float64
+		want []byte
+	}{
+		{
+			comp: 1,
+			vals: []float64{1, 1},
+			want: []byte{
+				0x02, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x70, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f,
+			},
+		},
+	}
+	for _, tc := range testcases {
+		buf := new(bytes.Buffer)
+		e := newBlockEncoder(buf, tc.comp)
+		for _, v := range tc.vals {
+			if err := e.encode(v); err != nil {
+				t.Fatalf("encode err=%q", err)
+			}
+		}
+		if err := e.flush(); err != nil {
+			t.Fatalf("flush err=%q", err)
+		}
+		if have := buf.Bytes(); !bytes.Equal(have, tc.want) {
+			t.Error("block encode")
+			t.Logf("have=%#v", bytes2binstr(have))
+			t.Logf("want=%#v", bytes2binstr(tc.want))
+		}
+	}
+}
+
 func TestPrefixCode(t *testing.T) {
 	type output struct {
 		code       uint8
