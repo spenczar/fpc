@@ -1,42 +1,102 @@
 package fpc
 
+import (
+	"log"
+	"math"
+)
+
 const decoderBuffer = 1024
 
 type decoder struct {
-	vals []uint64
+	vals []float64
+
+	fcm  predictor
+	dfcm predictor
+
+	nRecords, nBytes           int
+	nRecordsTotal, nBytesTotal int
 }
 
-func newDecoder() *decoder {
+func newDecoder(compression uint) *decoder {
 	return &decoder{
-		vals: make([]uint64, decoderBuffer),
+		fcm:  newFCM(compression),
+		dfcm: newDFCM(compression),
+		vals: make([]float64, 0),
 	}
 }
 
-func decodePrefix(b byte) (nzero1, nzero2 uint8, p1, p2 predictorClass) {
-	// top bit and 5th bit are indicators for predictor classes
-	nzero1, nzero2 = uint8((b&0x70)>>4), uint8(b&0x07)
-	// See the comment in encoder.prefixCode.
-	if nzero1 >= 4 {
-		nzero1 += 1
+func (d *decoder) decodeBlock(block []byte) {
+	log.Printf("decoding %#v", block)
+	if len(block) == 0 {
+		return
 	}
-	if nzero2 >= 4 {
-		nzero2 += 1
+	// Decode header
+	bh := decodeBlockHeader(block)
+	d.nRecordsTotal = int(bh.nRecords)
+	d.nBytesTotal = int(bh.nBytes)
+
+	// Allocate space for the records
+	headers := make([]header, d.nRecordsTotal)
+	d.vals = append(d.vals, make([]float64, 0, d.nRecordsTotal)...)
+
+	// Advance through the block past the header
+	block = block[blockHeaderSize:]
+
+	// Read the record headers. Each byte contains two headers.
+	for i := 0; i < d.nRecordsTotal; i += 2 {
+		headers[i], headers[i+1] = decodeHeaders(block[i/2])
 	}
-	p1, p2 = predictorClass((b&0x80)>>7), predictorClass(b&0x08>>3)
-	return
+	// Advance past the record headers.
+	block = block[d.nRecordsTotal/2:]
+	// Decode the actual values
+	var (
+		val  uint64
+		pred uint64
+		h    header
+	)
+	for i := 0; i < d.nRecordsTotal; i += 1 {
+		h = headers[i]
+
+		val = decodeData(block[:h.len])
+
+		// XOR with the predictions to get back the true values
+		if h.pType == fcmPredictor {
+			pred = d.fcm.predict()
+		} else {
+			pred = d.dfcm.predict()
+		}
+		val = pred ^ val
+		d.vals = append(d.vals, math.Float64frombits(val))
+		d.fcm.update(val)
+		d.dfcm.update(val)
+		// Advance through the block
+		block = block[h.len:]
+	}
 }
 
-func decodeOne(b []byte) (nRead int, v1, v2 uint64) {
-	// Pull out prefix bits
-	nz1, nz2, _, _ := decodePrefix(b[0])
+type blockHeader struct {
+	nRecords, nBytes uint32
+}
 
-	start, end := 1, 1+8-int(nz1)
-	v1 = decodeData(b[start:end])
+func decodeFirstBlock(bs []byte) (compression int, h blockHeader) {
+	// First byte encodes size of hash tables
+	h = decodeBlockHeader(bs[1:])
+	return int(bs[0]), h
+}
 
-	start, end = end, end+8-int(nz2)
-	v2 = decodeData(b[start:end])
+func decodeBlockHeader(bs []byte) blockHeader {
+	var h blockHeader
+	// First three bytes encode the number of records
+	h.nRecords = uint32(bs[2])
+	h.nRecords = (h.nRecords << 8) | uint32(bs[1])
+	h.nRecords = (h.nRecords << 8) | uint32(bs[0])
 
-	return end, v1, v2
+	// remaining 3 encode the number of bytes in the block
+	h.nBytes = uint32(bs[5])
+	h.nBytes = (h.nBytes << 8) | uint32(bs[4])
+	h.nBytes = (h.nBytes << 8) | uint32(bs[3])
+
+	return h
 }
 
 func decodeData(b []byte) (v uint64) {
@@ -89,29 +149,4 @@ func decodeData(b []byte) (v uint64) {
 		// case 0: leave v as 0
 	}
 	return v
-}
-
-type blockHeader struct {
-	nRecords, nBytes uint32
-}
-
-func decodeFirstBlock(bs []byte) (compression int, h blockHeader) {
-	// First byte encodes size of hash tables
-	h = decodeBlockHeader(bs[1:])
-	return int(bs[0]), h
-}
-
-func decodeBlockHeader(bs []byte) blockHeader {
-	var h blockHeader
-	// First three bytes encode the number of records
-	h.nRecords = uint32(bs[2])
-	h.nRecords = (h.nRecords << 8) | uint32(bs[1])
-	h.nRecords = (h.nRecords << 8) | uint32(bs[0])
-
-	// remaining 3 encode the number of bytes in the block
-	h.nBytes = uint32(bs[5])
-	h.nBytes = (h.nBytes << 8) | uint32(bs[4])
-	h.nBytes = (h.nBytes << 8) | uint32(bs[3])
-
-	return h
 }

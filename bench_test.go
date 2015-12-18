@@ -58,27 +58,7 @@ func BenchmarkEncodeNonzero(b *testing.B) {
 	b.SetBytes(8)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		e.encodeNonzero(uint64(i), uint64(i)%8, buf)
-	}
-}
-
-func BenchmarkDecode(b *testing.B) {
-	e := newEncoder(defaultCompression)
-	n := min(b.N, 1e6)
-	raw := generateValues(n)
-	encoded := make([][]byte, len(raw))
-
-	totalBytes := 0
-	for i := range raw {
-		encoded[i] = e.encode(0xFAFF*uint64(i), 0x1234*uint64(i))
-		totalBytes += len(encoded[i])
-	}
-
-	b.SetBytes(int64(totalBytes / n))
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		decodeOne(encoded[i%n])
+		e.encodeNonzero(uint64(i), uint8(i)%8, buf)
 	}
 }
 
