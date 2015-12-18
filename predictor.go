@@ -8,7 +8,8 @@ const (
 )
 
 type predictor interface {
-	predict(actual uint64) (predicted uint64)
+	predict() (predicted uint64)
+	update(actual uint64)
 }
 
 type fcm struct {
@@ -31,11 +32,12 @@ func (f *fcm) hash(actual uint64) uint64 {
 	return ((f.lastHash << 6) ^ (actual >> 48)) & (f.size - 1)
 }
 
-func (f *fcm) predict(actual uint64) uint64 {
-	pred := f.table[f.lastHash]
+func (f *fcm) predict() uint64 {
+	return f.table[f.lastHash]
+}
+func (f *fcm) update(actual uint64) {
 	f.table[f.lastHash] = actual
 	f.lastHash = f.hash(actual)
-	return pred
 }
 
 type dfcm struct {
@@ -59,10 +61,11 @@ func (d *dfcm) hash(actual uint64) uint64 {
 	return ((d.lastHash << 2) ^ (actual - d.lastValue>>40)) & (d.size - 1)
 }
 
-func (d *dfcm) predict(actual uint64) uint64 {
-	pred := d.table[d.lastHash] + d.lastValue
+func (d *dfcm) predict() uint64 {
+	return d.table[d.lastHash] + d.lastValue
+}
+func (d *dfcm) update(actual uint64) {
 	d.table[d.lastHash] = actual - d.lastValue
 	d.lastHash = d.hash(actual)
 	d.lastValue = actual
-	return pred
 }

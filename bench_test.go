@@ -74,17 +74,19 @@ func BenchmarkFCM(b *testing.B) {
 	b.SetBytes(8)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		fcm.predict(vals[i%n])
+		fcm.predict()
+		fcm.update(vals[i%n])
 	}
 }
 
 func BenchmarkDFCM(b *testing.B) {
 	n := min(b.N, 1e6)
 	vals := generateValues(n)
-	fcm := newDFCM(32768)
+	dfcm := newDFCM(32768)
 	b.SetBytes(8)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		fcm.predict(vals[i%n])
+		dfcm.predict()
+		dfcm.update(vals[i%n])
 	}
 }
