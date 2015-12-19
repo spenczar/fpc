@@ -40,7 +40,7 @@ func (d *decoder) decodeBlock(block []byte) {
 	block = block[blockHeaderSize:]
 
 	// Read the record headers. Each byte contains two headers.
-	for i := 0; i < d.nRecordsTotal; i += 2 {
+	for i := 0; i+1 < d.nRecordsTotal; i += 2 {
 		headers[i], headers[i+1] = decodeHeaders(block[i/2])
 	}
 	// Advance past the record headers.
