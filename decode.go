@@ -1,9 +1,6 @@
 package fpc
 
-import (
-	"log"
-	"math"
-)
+import "math"
 
 const decoderBuffer = 1024
 
@@ -18,15 +15,15 @@ type decoder struct {
 }
 
 func newDecoder(compression uint) *decoder {
+	tableSize := uint(1 << compression)
 	return &decoder{
-		fcm:  newFCM(compression),
-		dfcm: newDFCM(compression),
+		fcm:  newFCM(tableSize),
+		dfcm: newDFCM(tableSize),
 		vals: make([]float64, 0),
 	}
 }
 
 func (d *decoder) decodeBlock(block []byte) {
-	log.Printf("decoding %#v", block)
 	if len(block) == 0 {
 		return
 	}
