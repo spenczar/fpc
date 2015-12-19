@@ -43,8 +43,13 @@ func (d *decoder) decodeBlock(block []byte) {
 	for i := 0; i+1 < d.nRecordsTotal; i += 2 {
 		headers[i], headers[i+1] = decodeHeaders(block[i/2])
 	}
+	advanceBy := d.nRecordsTotal / 2
+	if d.nRecordsTotal%2 == 1 {
+		headers[d.nRecordsTotal-1], _ = decodeHeaders(block[d.nRecordsTotal/2])
+		advanceBy += 1
+	}
 	// Advance past the record headers.
-	block = block[d.nRecordsTotal/2:]
+	block = block[advanceBy:]
 	// Decode the actual values
 	var (
 		val  uint64
@@ -55,7 +60,6 @@ func (d *decoder) decodeBlock(block []byte) {
 		h = headers[i]
 
 		val = decodeData(block[:h.len])
-
 		// XOR with the predictions to get back the true values
 		if h.pType == fcmPredictor {
 			pred = d.fcm.predict()
