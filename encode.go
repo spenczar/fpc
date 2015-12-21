@@ -7,10 +7,8 @@ import (
 )
 
 const (
-	encoderBuffer    = 1024 // initial size for encoder buffer
-	defaultBlockSize = 32768
-
-	blockHeaderSize = 6 // in bytes
+	maxRecordsPerBlock = 32768
+	blockHeaderSize    = 6 // in bytes
 )
 
 var byteOrder = binary.LittleEndian
@@ -85,13 +83,12 @@ type blockEncoder struct {
 
 func newBlockEncoder(w io.Writer, compression uint) *blockEncoder {
 	return &blockEncoder{
-		headers:   make([]byte, 0, defaultBlockSize/16),
-		values:    make([]byte, 0, defaultBlockSize),
-		blockSize: defaultBlockSize,
-		w:         w,
-		enc:       newEncoder(compression),
-		last:      0,
-		nRecords:  0,
+		headers:  make([]byte, 0, maxRecordsPerBlock),
+		values:   make([]byte, 0, maxRecordsPerBlock*8),
+		w:        w,
+		enc:      newEncoder(compression),
+		last:     0,
+		nRecords: 0,
 	}
 }
 
@@ -117,6 +114,12 @@ func (b *blockEncoder) encode(v uint64) error {
 	b.nRecords += 1
 	b.nBytes += nBytes
 
+	// Flush if we need to
+	if b.nRecords == maxRecordsPerBlock {
+		if err := b.flush(); err != nil {
+			return err
+		}
+	}
 	return nil
 
 }
@@ -151,8 +154,8 @@ func (b *blockEncoder) flush() error {
 	}
 
 	// Reset buffer and counters
-	b.headers = make([]byte, 0, b.blockSize/16)
-	b.values = make([]byte, 0, b.blockSize)
+	b.headers = make([]byte, 0, maxRecordsPerBlock)
+	b.values = make([]byte, 0, maxRecordsPerBlock)
 	b.nRecords = 0
 	b.nBytes = 0
 	return nil
