@@ -153,7 +153,6 @@ func (r *Reader) readBlockHeader() (b block, err error) {
 	buf = make([]byte, b.nRec/2)
 	n, err = io.ReadFull(r.r, buf)
 	if err != nil {
-		log.Printf("Missing headers")
 		return b, err
 	}
 	for i, byte := range buf {

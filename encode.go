@@ -23,12 +23,6 @@ func (ph pairHeader) encode() byte {
 	return (ph.h1.encode()<<4 | ph.h2.encode())
 }
 
-func (ph pairHeader) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, 1, 1)
-	data[0] = ph.encode()
-	return data, nil
-}
-
 // header is a cotainer for the count of the number of non-zero bytes in an
 // encoded value, and the type of predictor used to generate the encoded value
 type header struct {
