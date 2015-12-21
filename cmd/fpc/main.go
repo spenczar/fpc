@@ -56,10 +56,6 @@ func compressStream(in io.Reader, out io.Writer, level int) {
 		}
 		w.Write(buf[:n])
 	}
-	err = w.Close()
-	if err != nil {
-		fatal(err)
-	}
 }
 
 func decompressStream(in io.Reader, out io.Writer) {

@@ -100,10 +100,7 @@ func (r *Reader) Read(buf []byte) (int, error) {
 				return nRead, err
 			}
 		}
-
 	}
-
-	return 0, nil
 }
 
 func (r *Reader) ReadFloats(fs []float64) (int, error) {
