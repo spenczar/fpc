@@ -1,7 +1,19 @@
 # fpc #
 
-fpc is a Go implementation of Burtscher and Ratanaworabhan's 'FPC' algorithm
-for compressing a stream of floating point data.
+[![GoDoc](http://godoc.org/github.com/spenczar/fpc?status.svg)](http://godoc.org/github.com/spenczar/fpc) [![Build Status](https://travis-ci.org/spenczar/fpc.svg)](https://travis-ci.org/spenczar/fpc)
+
+fpc is a Go implementation of Burtscher and Ratanaworabhan's ['FPC' algorithm](http://cs.txstate.edu/~burtscher/research/FPC/) for compressing a stream of floating point data.
+
+## Why? ##
+
+The FPC algorithm can losslessly encode and decode huge amounts of
+floating-point data very quickly. It scales well to
+gigabyte-per-second streams. Compression ratios are better than just
+about any generic compressor like gzip or bzip, and compression and
+decompression throughput are much better (like, 8x to 300x faster)
+than other algorithms. For more on this,
+[the paper introducing FPC](http://cs.txstate.edu/~burtscher/papers/dcc07a.pdf)
+is really readable - I highly recommend it!
 
 ## Usage ##
 
