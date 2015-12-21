@@ -101,9 +101,7 @@ func (w *Writer) writeUint64(u uint64) error {
 
 // writeBytes writes a single 8-byte encoded IEEE 754 float
 func (w *Writer) writeBytes(b []byte) error {
-	var v uint64
-	binary.LittleEndian.PutUint64(b, v)
-	if err := w.writeUint64(v); err != nil {
+	if err := w.writeUint64(binary.LittleEndian.Uint64(b)); err != nil {
 		return err
 	}
 	return nil
