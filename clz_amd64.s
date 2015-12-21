@@ -1,7 +1,7 @@
 // +build amd64
 
 // func clzBytes(val uint64) uint64
-TEXT ·clzBytes(SB),NOSPLIT,$0
+TEXT ·clzBytes(SB),$0
         MOVQ    val+0(FP), AX
         BSWAPQ  AX      // Reverse order of val
         BSFQ    AX, AX  // Get index of highest set bit in val
