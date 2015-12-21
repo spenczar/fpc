@@ -209,7 +209,10 @@ func (e *encoder) computeDiff(v uint64) (d uint64, h header) {
 		h.pType = dfcmPredictor
 	}
 	h.len = uint8(8 - clzBytes(d))
-
+	// See the comment in header.encode.
+	if h.len == 4 {
+		h.len += 1
+	}
 	return d, h
 }
 
