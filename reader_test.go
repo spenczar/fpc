@@ -11,9 +11,12 @@ func TestReader(t *testing.T) {
 
 		r := NewReader(comp)
 
+		var err error
 		have := make([]float64, len(tc.uncompressed))
-		_, err := r.ReadFloats(have)
-		tc.AssertNoError(t, err, "ReadFloats")
+		for i := range have {
+			have[i], err = r.ReadFloat()
+			tc.AssertNoError(t, err, "ReadFloats")
+		}
 		tc.AssertEqual(t, have, tc.uncompressed, "Reader")
 	}
 }

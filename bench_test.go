@@ -110,7 +110,18 @@ var benchcase = reftestcase{
 		0x00, 0x00, 0xba, 0x0f},
 }
 
-func BenchmarkReader(b *testing.B) {
+func BenchmarkReadFloat(b *testing.B) {
+	b.SetBytes(int64(len(benchcase.compressed)))
+	in := bytes.NewBuffer(benchcase.compressed)
+
+	r := NewReader(in)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.ReadFloat()
+	}
+}
+
+func BenchmarkReadFloats(b *testing.B) {
 	b.SetBytes(int64(len(benchcase.compressed)))
 	in := bytes.NewBuffer(benchcase.compressed)
 	out := make([]float64, len(benchcase.uncompressed))

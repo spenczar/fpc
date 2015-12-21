@@ -33,7 +33,9 @@ type Reader struct {
 // NewReader creates a new Reader which reads and decompresses FPC data from
 // the given io.Reader.
 func NewReader(r io.Reader) *Reader {
-	return &Reader{r: r}
+	return &Reader{
+		r: r,
+	}
 }
 
 func (r *Reader) initialize() (err error) {
@@ -113,10 +115,10 @@ func (r *Reader) Read(buf []byte) (int, error) {
 	}
 }
 
-// ReadFloats will read data from the underlying io.Reader, decode it,
-// and store the resulting value in fs. If more values might be
-// available, ReadFloats will return len(fs), nil. If no more values
-// are available, ReadFloats will return with err==io.EOF.
+// ReadFloats will read data from the underlying io.Reader, parsing
+// the data it gets back as float64s and putting them into fs. If no
+// more values are available, ReadFloats will returns with an
+// err==io.EOF.
 func (r *Reader) ReadFloats(fs []float64) (int, error) {
 	buf := make([]byte, 8)
 	var val uint64
@@ -129,6 +131,21 @@ func (r *Reader) ReadFloats(fs []float64) (int, error) {
 		fs[i] = math.Float64frombits(val)
 	}
 	return len(fs), nil
+}
+
+// ReadFloat will read data from the underlying io.Reader until it has
+// read enough data to provide a float64, decodes that data, and
+// returns the decoded float64. If an error is encountered while
+// reading, it returns 0 and that error. If no more values are
+// available, ReadFloat will return with err==io.EOF.
+func (r *Reader) ReadFloat() (float64, error) {
+	buf := make([]byte, 8)
+	_, err := r.Read(buf)
+	if err != nil {
+		return 0, err
+	}
+	val := binary.LittleEndian.Uint64(buf)
+	return math.Float64frombits(val), nil
 }
 
 // readBlockHeader reads the block header and record headers that start a data
@@ -188,7 +205,7 @@ func (r *Reader) readBlockHeader() (b block, err error) {
 	return b, nil
 }
 
-func (r *Reader) readFromBlock(buf []byte) (int, error) {
+func (r *Reader) readFromBlock(p []byte) (int, error) {
 	var (
 		b    []byte // workspace for decoding
 		val  uint64
@@ -199,7 +216,7 @@ func (r *Reader) readFromBlock(buf []byte) (int, error) {
 	)
 
 	b = make([]byte, 8) // records can be at most 8 bytes
-	for r.block.nRecRead < r.block.nRec && len(buf) > 0 {
+	for r.block.nRecRead < r.block.nRec && len(p) > 0 {
 		// Get as many bytes off the reader as the header says we should take.
 		h = r.block.headers[r.block.nRecRead]
 		n, err := r.r.Read(b[:h.len])
@@ -223,9 +240,9 @@ func (r *Reader) readFromBlock(buf []byte) (int, error) {
 		r.fcm.update(val)
 		r.dfcm.update(val)
 
-		// Write the value to buf.
-		binary.LittleEndian.PutUint64(buf[:8], val)
-		buf = buf[8:]
+		// Write the value to p.
+		binary.LittleEndian.PutUint64(p[:8], val)
+		p = p[8:]
 
 		// increment counters
 		bytesDecoded += 8
