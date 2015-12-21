@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
+	"runtime/pprof"
 
 	"github.com/spenczar/fpc"
 )
@@ -16,7 +18,18 @@ func main() {
 	decompress := flag.Bool("d", false, "Decompress input data and write output to stdout.")
 	level := flag.Int("l", fpc.DefaultCompression, "Compression level to use when compressing. Ignored when decompressing.")
 	help := flag.Bool("h", false, "Print this help text")
+	cpuprofile := flag.String("cpuprofile", "", "Write a CPU profile to this location")
+
 	flag.Parse()
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 
 	if *help {
 		flag.Usage()
