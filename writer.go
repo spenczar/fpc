@@ -15,8 +15,8 @@ const (
 	floatChunkSize = 8
 )
 
-// A Writer is an io.WriteCloser.
-// Writes to a Writer are compressed and written to w.
+// A Writer is an io.WriteCloser which FPC-compresses data it receives
+// and writes it to an underlying writer, w.  Writes to a Writer are
 type Writer struct {
 	w     io.Writer
 	level int
@@ -26,11 +26,18 @@ type Writer struct {
 	closed      bool
 }
 
+// NewWriter makes a new Writer which writes compressed data to w
+// using the default compression level.
 func NewWriter(w io.Writer) *Writer {
 	z, _ := NewWriterLevel(w, DefaultCompression)
 	return z
 }
 
+// NewWriterLevel makes a new Writer which writes compressed data to w
+// using a provided compression level. Higher compression levels will
+// result in more compressed data, but require exponentially more
+// memory. The space required is O(2^level) bytes. NewWriterLevel
+// returns an error if an invalid compression level is provided.
 func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
 	if level < 1 || level > MaxCompression {
 		return nil, fmt.Errorf("fpc: invalid compression level: %d", level)
@@ -43,6 +50,9 @@ func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
 	return z, nil
 }
 
+// Write interprets b as a stream of byte-encoded, 64-bit IEEE 754
+// floating point values. The length of b must be a multiple of 8 in
+// order to match this expectation.
 func (w *Writer) Write(b []byte) (int, error) {
 	if len(b)%8 != 0 {
 		return 0, errors.New("fpc.Write: len of data must be a multiple of 8")
@@ -55,10 +65,18 @@ func (w *Writer) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
+// WriteFloat writes a single float64 value to the encoded stream.
 func (w *Writer) WriteFloat(f float64) error {
 	return w.writeFloat64(f)
 }
 
+// Flush will make sure all internally-buffered values are written to
+// w. FPC's format specifies that data get written in blocks; calling
+// Flush will write the current data to a block, even if it results in
+// a partial block.
+//
+// Flush does not flush the underlying io.Writer which w is delegating
+// to.
 func (w *Writer) Flush() error {
 	if err := w.ensureHeader(); err != nil {
 		return err
@@ -66,6 +84,9 @@ func (w *Writer) Flush() error {
 	return w.enc.flush()
 }
 
+// Close will flush the Writer and make any subsequent writes return
+// errors. It does not close the underlying io.Writer which w is
+// delegating to.
 func (w *Writer) Close() error {
 	if w.closed == true {
 		return nil

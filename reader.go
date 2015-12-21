@@ -8,10 +8,6 @@ import (
 	"math"
 )
 
-var (
-	ErrHeader = errors.New("fpc: invalid header")
-)
-
 // A DataError is returned when the FPC data is found to be syntactically
 // invalid.
 type DataError string
@@ -20,6 +16,8 @@ func (e DataError) Error() string {
 	return "fpc data invalid: " + string(e)
 }
 
+// A Reader provides io.Reader-style access to a stream of FPC
+// compressed data.
 type Reader struct {
 	r io.Reader
 
@@ -33,7 +31,7 @@ type Reader struct {
 }
 
 // NewReader creates a new Reader which reads and decompresses FPC data from
-// the given reader.
+// the given io.Reader.
 func NewReader(r io.Reader) *Reader {
 	return &Reader{r: r}
 }
@@ -63,7 +61,19 @@ func (r *Reader) readGlobalHeader() (comp uint, err error) {
 	return uint(b[0]), nil
 }
 
+// Read reads from up to (len(buf) / 8) IEEE 754 64-bit floating point
+// values into buf. It is an error to provide a buf whose length is
+// not a multiple of 8, because that would prevent encoding of the
+// read float64s.
+//
+// If more values might be available, Read will return len(buf),
+// nil. If no more values are available, Read will return with
+// err==io.EOF
 func (r *Reader) Read(buf []byte) (int, error) {
+	if len(buf)%8 != 0 {
+		return 0, errors.New("fpc: []byte passed to Reader.Read must have length which is a multiple of 8")
+	}
+
 	if !r.initialized {
 		err := r.initialize()
 		if err != nil {
@@ -103,6 +113,10 @@ func (r *Reader) Read(buf []byte) (int, error) {
 	}
 }
 
+// ReadFloats will read data from the underlying io.Reader, decode it,
+// and store the resulting value in fs. If more values might be
+// available, ReadFloats will return len(fs), nil. If no more values
+// are available, ReadFloats will return with err==io.EOF.
 func (r *Reader) ReadFloats(fs []float64) (int, error) {
 	buf := make([]byte, 8)
 	var val uint64
