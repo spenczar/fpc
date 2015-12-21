@@ -95,12 +95,6 @@ func (b *blockEncoder) encode(v uint64) error {
 	}
 	header, data := b.enc.encode(b.last, v)
 	nBytes := 1 + len(data) // 1 for header
-	// If the encoded data would overflow our buffer, then flush first
-	if nBytes+b.nBytes > b.blockSize {
-		if err := b.flush(); err != nil {
-			return err
-		}
-	}
 
 	// Append data to the block
 	b.headers = append(b.headers, header.encode())

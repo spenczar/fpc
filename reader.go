@@ -3,8 +3,8 @@ package fpc
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
-	"log"
 	"math"
 )
 
@@ -78,28 +78,29 @@ func (r *Reader) Read(buf []byte) (int, error) {
 		if err != nil {
 			return n, err
 		}
-
 		nRead += n
 		// We've read everything we need to.
 		if nRead == len(buf) {
 			return nRead, nil
 		}
 
-		// End of block. Check whether counts match up.
+		// End of block.
 		if n == 0 {
-			if r.block.nByteRead != r.block.nByte {
-				return nRead, DataError("block byte length too short")
-			}
+			// Check whether counts match up.
 			if r.block.nRecRead != r.block.nRec {
 				return nRead, DataError("block record length too short")
 			}
+			if r.block.nByteRead != r.block.nByte {
+				return nRead, DataError(fmt.Sprintf("block byte length too short, have=%d  want=%d", r.block.nByteRead, r.block.nByte))
+			}
+
+			// Find a new block
+			r.block, err = r.readBlockHeader()
+			if err != nil {
+				return nRead, err
+			}
 		}
 
-		// Find a new block
-		r.block, err = r.readBlockHeader()
-		if err != nil {
-			return nRead, err
-		}
 	}
 
 	return 0, nil
@@ -178,22 +179,24 @@ func (r *Reader) readBlockHeader() (b block, err error) {
 
 func (r *Reader) readFromBlock(buf []byte) (int, error) {
 	var (
-		b     []byte // workspace for decoding
-		val   uint64
-		pred  uint64
-		h     header
-		nRead int
+		b    []byte // workspace for decoding
+		val  uint64
+		pred uint64
+		h    header
+
+		bytesDecoded int
 	)
+
 	b = make([]byte, 8) // records can be at most 8 bytes
-	for ; r.block.nRecRead < r.block.nRec && len(buf) > 0; r.block.nRecRead += 1 {
+	for r.block.nRecRead < r.block.nRec && len(buf) > 0 {
 		// Get as many bytes off the reader as the header says we should take.
 		h = r.block.headers[r.block.nRecRead]
 		n, err := r.r.Read(b[:h.len])
 		if n < int(h.len) || err == io.EOF {
-			return nRead, DataError("missing records")
+			return bytesDecoded, DataError("missing records")
 		}
 		if err != nil {
-			return nRead, err
+			return bytesDecoded, err
 		}
 
 		// Parse the bytes.
@@ -211,13 +214,14 @@ func (r *Reader) readFromBlock(buf []byte) (int, error) {
 
 		// Write the value to buf.
 		binary.LittleEndian.PutUint64(buf[:8], val)
-
-		// Advance buf.
-		nRead += 8
 		buf = buf[8:]
-		r.block.nByteRead += 8
+
+		// increment counters
+		bytesDecoded += 8
+		r.block.nByteRead += int(h.len)
+		r.block.nRecRead += 1
 	}
-	return nRead, nil
+	return bytesDecoded, nil
 }
 
 type block struct {
