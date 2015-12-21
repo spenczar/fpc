@@ -7,9 +7,8 @@ import (
 )
 
 const (
-	encoderBuffer      = 1024 // initial size for encoder buffer
-	defaultCompression = 10
-	defaultBlockSize   = 32768
+	encoderBuffer    = 1024 // initial size for encoder buffer
+	defaultBlockSize = 32768
 
 	blockHeaderSize = 6 // in bytes
 )
@@ -20,24 +19,6 @@ var byteOrder = binary.LittleEndian
 type pairHeader struct {
 	h1 header
 	h2 header
-}
-
-func decodeHeaders(b byte) (h1, h2 header) {
-	h1 = header{
-		len:   (b & 0x70) >> 4,
-		pType: predictorClass((b & 0x80) >> 7),
-	}
-	h2 = header{
-		len:   (b & 0x07),
-		pType: predictorClass((b & 0x08) >> 3),
-	}
-	if h1.len >= 4 {
-		h1.len += 1
-	}
-	if h2.len >= 4 {
-		h2.len += 1
-	}
-	return h1, h2
 }
 
 func (ph pairHeader) encode() byte {
@@ -93,14 +74,14 @@ type blockEncoder struct {
 	enc *encoder  // Underlying machinery for encoding pairs of floats
 
 	// Mutable state below
-	last     float64 // last value received to encode
-	nRecords int     // Count of float64s received in this block
-	nBytes   int     // Count of bytes in this block
+	last     uint64 // last value received to encode
+	nRecords int    // Count of float64s received in this block
+	nBytes   int    // Count of bytes in this block
 }
 
-type block struct {
-	header []byte
-}
+// type block struct {
+// 	header []byte
+// }
 
 func newBlockEncoder(w io.Writer, compression uint) *blockEncoder {
 	return &blockEncoder{
@@ -114,16 +95,14 @@ func newBlockEncoder(w io.Writer, compression uint) *blockEncoder {
 	}
 }
 
-func (b *blockEncoder) encode(f float64) error {
-	// Encode floats in pairs
+func (b *blockEncoder) encode(v uint64) error {
+	// Encode values in pairs
 	if b.nRecords%2 == 0 {
-		b.last = f
+		b.last = v
 		b.nRecords += 1
 		return nil
 	}
-
-	// TODO: actually keep header
-	header, data := b.enc.encode(math.Float64bits(b.last), math.Float64bits(f))
+	header, data := b.enc.encode(b.last, v)
 	nBytes := 1 + len(data) // 1 for header
 	// If the encoded data would overflow our buffer, then flush first
 	if nBytes+b.nBytes > b.blockSize {
@@ -139,6 +118,11 @@ func (b *blockEncoder) encode(f float64) error {
 	b.nBytes += nBytes
 
 	return nil
+
+}
+
+func (b *blockEncoder) encodeFloat(f float64) error {
+	return b.encode(math.Float64bits(f))
 }
 
 func (b *blockEncoder) flush() error {
@@ -148,7 +132,7 @@ func (b *blockEncoder) flush() error {
 	if b.nRecords%2 == 1 {
 		// There's an extra record waiting for a partner. Add a dummy value by
 		// encoding a zero and adding it to data.
-		h, data := b.enc.encode(math.Float64bits(b.last), 0)
+		h, data := b.enc.encode(b.last, 0)
 		// Truncate out the dummy value's data. The header remains, but it
 		// won't do any harm.
 		data = data[:h.h1.len]

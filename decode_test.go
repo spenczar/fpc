@@ -5,19 +5,6 @@ import (
 	"testing"
 )
 
-func TestDecodeBlock(t *testing.T) {
-	for i, tc := range refTests {
-		d := newDecoder(tc.comp)
-		d.decodeBlock(tc.compressed[1:])
-		if have := d.vals; !reflect.DeepEqual(have, tc.uncompressed) {
-			t.Errorf("block decode test=%d", i)
-			t.Logf("in=%#v", tc.compressed)
-			t.Logf("have=%#v", have)
-			t.Logf("want=%#v", tc.uncompressed)
-		}
-	}
-}
-
 func TestDecodeHeader(t *testing.T) {
 	type output struct {
 		n1, n2 uint8
@@ -77,27 +64,33 @@ func TestDecodeHeader(t *testing.T) {
 }
 
 func TestDecodeBlockHeader(t *testing.T) {
+
+	type result struct {
+		nRec   int
+		nBytes int
+	}
 	testcases := []struct {
 		in   []byte
-		want blockHeader
+		want result
 	}{
 		{
 			in: []byte{0x00, 0x80, 0x00, 0xb6, 0x35, 0x02},
-			want: blockHeader{
-				nRecords: 32768,
-				nBytes:   144822,
+			want: result{
+				nRec:   32768,
+				nBytes: 144822,
 			},
 		},
 		{
 			in: []byte{0x00, 0x80, 0x00, 0xc2, 0x43, 0x00},
-			want: blockHeader{
-				nRecords: 32768,
-				nBytes:   17346,
+			want: result{
+				nRec:   32768,
+				nBytes: 17346,
 			},
 		},
 	}
 	for i, tc := range testcases {
-		have := decodeBlockHeader(tc.in)
+		var have result
+		have.nRec, have.nBytes = decodeBlockHeader(tc.in)
 		if !reflect.DeepEqual(have, tc.want) {
 			t.Errorf("decodeBlockHeader test=%d  have=%+v  want=%+v", i, have, tc.want)
 		}

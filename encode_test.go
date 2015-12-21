@@ -10,7 +10,7 @@ func TestBlockEncoder(t *testing.T) {
 		buf := new(bytes.Buffer)
 		e := newBlockEncoder(buf, tc.comp)
 		for _, v := range tc.uncompressed {
-			if err := e.encode(v); err != nil {
+			if err := e.encodeFloat(v); err != nil {
 				t.Fatalf("encode err=%q", err)
 			}
 		}
@@ -149,7 +149,7 @@ func TestEncodeNonzero(t *testing.T) {
 	}
 
 	for i, tc := range testcases {
-		e := newEncoder(defaultCompression)
+		e := newEncoder(DefaultCompression)
 		have := make([]byte, tc.in.len)
 		e.encodeNonzero(byteOrder.Uint64(tc.in.val), tc.in.len, have)
 		if !bytes.Equal(have, tc.want) {
@@ -194,7 +194,7 @@ func TestPairEncode(t *testing.T) {
 		},
 	}
 	for i, tc := range testcases {
-		e := newEncoder(defaultCompression)
+		e := newEncoder(DefaultCompression)
 		e.fcm = &mockPredictor{0}
 		e.dfcm = &mockPredictor{0}
 		haveHeader, haveData := e.encode(byteOrder.Uint64(tc.v1), byteOrder.Uint64(tc.v2))
