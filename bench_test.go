@@ -79,7 +79,7 @@ func BenchmarkFCM(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		fcm.predict()
-		fcm.update(0xFAFF)
+		fcm.update(uint64(i))
 	}
 }
 
@@ -89,7 +89,7 @@ func BenchmarkDFCM(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		dfcm.predict()
-		dfcm.update(0xFAFF)
+		dfcm.update(uint64(i))
 	}
 }
 
