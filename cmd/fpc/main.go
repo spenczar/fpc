@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -22,10 +23,16 @@ func main() {
 		os.Exit(0)
 	}
 
+	in := bufio.NewReaderSize(os.Stdin, 32768*8)
+	out := bufio.NewWriterSize(os.Stdout, 32768*8)
 	if *decompress {
-		decompressStream(os.Stdin, os.Stdout)
+		decompressStream(in, out)
 	} else {
-		compressStream(os.Stdin, os.Stdout, *level)
+		compressStream(in, out, *level)
+	}
+	err := out.Flush()
+	if err != nil {
+		fatal(err)
 	}
 }
 
@@ -43,7 +50,6 @@ func compressStream(in io.Reader, out io.Writer, level int) {
 	buf := make([]byte, bufferSize)
 	for {
 		n, err := in.Read(buf)
-		//log.Printf("bytes off wire: %#v", buf[:n])
 		if err == io.EOF {
 			w.Write(buf[:n])
 			err = w.Close()
