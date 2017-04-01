@@ -10,7 +10,10 @@ import (
 
 const (
 	DefaultCompression = 10
-	MaxCompression     = 0xFF
+	// The reference implementation uses 255 for a max compression, but that
+	// hardly seems realistic: merely 32 will require 68 gigabytes of working
+	// memory to compute hashes. Beyond 35 we start hitting panics.
+	MaxCompression = 32
 
 	floatChunkSize = 8
 )
