@@ -256,11 +256,6 @@ func (e *encoder) encodeNonzero(v uint64, n uint8, into []byte) {
 		into[2] = byte((v >> 16) & 0xFF)
 		into[3] = byte((v >> 24) & 0xFF)
 		into[4] = byte((v >> 32) & 0xFF)
-	case 4:
-		into[0] = byte(v & 0xFF)
-		into[1] = byte((v >> 8) & 0xFF)
-		into[2] = byte((v >> 16) & 0xFF)
-		into[3] = byte((v >> 24) & 0xFF)
 	case 3:
 		into[0] = byte(v & 0xFF)
 		into[1] = byte((v >> 8) & 0xFF)
