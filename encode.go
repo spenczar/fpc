@@ -33,22 +33,6 @@ type header struct {
 // the top bit is the predictor type bit. Bottom 3 bits encode the number of
 // leading zero bytes for the value.
 func (h header) encode() byte {
-	// We want to encode the number of zero bytes into 3 bits. 4-zero-byte
-	// prefixes are extremely rare, so they are treated like 3-zero-byte
-	// prefixes. Burtscher and Ratanaworabhan explain in "FPC: A High-Speed
-	// Compressor for Double-Precision Floating-Point Data:"
-	//
-	//   "Since there can be between zero and eight leading zero bytes, i.e.,
-	//   nine possibilities, not all of them can be encoded with a three-bit
-	//   value. We decided not to support a leading zero count of four because
-	//   it occurs only rarely (cf. Section 5.4). Consequently, all xor results
-	//   with four leading zero bytes are treated like values with only three
-	//   leading zero bytes and the fourth zero byte is emitted as part of the
-	//   residual."
-
-	if h.len == 4 {
-		h.len -= 1
-	}
 	if h.len > 4 {
 		return byte(h.pType)<<3 | byte(h.len-1)
 	} else {
@@ -210,6 +194,18 @@ func (e *encoder) computeDiff(v uint64) (d uint64, h header) {
 	}
 	h.len = uint8(8 - clzBytes(d))
 
+	//   "Since there can be between zero and eight leading zero bytes, i.e.,
+	//   nine possibilities, not all of them can be encoded with a three-bit
+	//   value. We decided not to support a leading zero count of four because
+	//   it occurs only rarely (cf. Section 5.4). Consequently, all xor results
+	//   with four leading zero bytes are treated like values with only three
+	//   leading zero bytes and the fourth zero byte is emitted as part of the
+	//   residual."
+	//
+	// Here we add 1, to include one of the leading 0s in the residual.
+	if h.len == 4 {
+		h.len += 1
+	}
 	return d, h
 }
 
