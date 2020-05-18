@@ -1,0 +1,9 @@
+This file contains a golden test set of data downloaded from
+https://userweb.cs.txstate.edu/~burtscher/research/datasets/FPdouble/,
+specifically the test dataset at
+http://www.cs.txstate.edu/~burtscher/research/datasets/FPdouble/test.trace.fpc.
+This file contains floating point data which has been FPC-compressed at level
+20.
+
+
+The file has been decompressed into test_decompressed.data too.
