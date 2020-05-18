@@ -1,6 +1,6 @@
 # fpc #
 
-[![GoDoc](http://godoc.org/github.com/spenczar/fpc?status.svg)](http://godoc.org/github.com/spenczar/fpc) [![Build Status](https://travis-ci.org/spenczar/fpc.svg)](https://travis-ci.org/spenczar/fpc)
+[![GoDoc](http://godoc.org/github.com/spenczar/fpc?status.svg)](http://godoc.org/github.com/spenczar/fpc)
 
 fpc is a Go implementation of Burtscher and Ratanaworabhan's ['FPC' algorithm](http://cs.txstate.edu/~burtscher/research/FPC/) for compressing a stream of floating point data.
 
