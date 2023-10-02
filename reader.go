@@ -155,7 +155,7 @@ func (r *Reader) readBlockHeader() (b block, err error) {
 	// The first 6 bytes of the block describe the number of records and bytes
 	// in the block.
 	buf := make([]byte, 6)
-	n, err := r.r.Read(buf)
+	n, err := io.ReadFull(r.r, buf)
 	if n == 0 && err == io.EOF {
 		// No data available: This is a genuine EOF. We have no blocks left.
 		return b, io.EOF
@@ -219,7 +219,7 @@ func (r *Reader) readFromBlock(p []byte) (int, error) {
 	for r.block.nRecRead < r.block.nRec && len(p) > 0 {
 		// Get as many bytes off the reader as the header says we should take.
 		h = r.block.headers[r.block.nRecRead]
-		n, err := r.r.Read(b[:h.len])
+		n, err := io.ReadFull(r.r, b[:h.len])
 		if n < int(h.len) || err == io.EOF {
 			return bytesDecoded, DataError("missing records")
 		}
