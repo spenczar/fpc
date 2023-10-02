@@ -21,21 +21,34 @@ func (e DataError) Error() string {
 type Reader struct {
 	r io.Reader
 
-	fcm  predictor
-	dfcm predictor
+	fcm       predictor
+	dfcm      predictor
+	tableSize uint
 
 	initialized bool
 	eof         bool
 
 	block block // Current block being read
+
+	shortBuf    []byte
+	headersBuf  []byte
+	lastHeaders []header
 }
 
 // NewReader creates a new Reader which reads and decompresses FPC data from
 // the given io.Reader.
 func NewReader(r io.Reader) *Reader {
 	return &Reader{
-		r: r,
+		r:        r,
+		shortBuf: make([]byte, 8),
 	}
+}
+
+func (r *Reader) Reset(reader io.Reader) {
+	r.r = reader
+	r.initialized = false
+	r.eof = false
+	r.block = block{}
 }
 
 func (r *Reader) initialize() (err error) {
@@ -44,15 +57,24 @@ func (r *Reader) initialize() (err error) {
 		return err
 	}
 	tableSize := uint(1 << comp)
-	r.fcm = newFCM(tableSize)
-	r.dfcm = newDFCM(tableSize)
+
+	// Clear instead of instantiate new if possible
+	if r.tableSize != tableSize {
+		r.fcm = newFCM(tableSize)
+		r.dfcm = newDFCM(tableSize)
+		r.tableSize = tableSize
+	} else {
+		r.fcm.clear()
+		r.dfcm.clear()
+	}
+
 	r.initialized = true
 	return nil
 }
 
 // readGlobalHeader reads one byte and parses it as the compression level.
 func (r *Reader) readGlobalHeader() (comp uint, err error) {
-	var b []byte = make([]byte, 1)
+	b := r.shortBuf[:1]
 	n, err := r.r.Read(b)
 	if err != nil {
 		return 0, err
@@ -120,9 +142,11 @@ func (r *Reader) Read(buf []byte) (int, error) {
 // more values are available, ReadFloats will returns with an
 // err==io.EOF.
 func (r *Reader) ReadFloats(fs []float64) (int, error) {
-	buf := make([]byte, 8)
+	buf := make([]byte, 8) // Allocated to stack
 	var val uint64
-	for i := range fs {
+	numFloats := len(fs)
+
+	for i := 0; i < numFloats; i++ {
 		_, err := r.Read(buf)
 		if err != nil {
 			return i, err
@@ -130,7 +154,8 @@ func (r *Reader) ReadFloats(fs []float64) (int, error) {
 		val = binary.LittleEndian.Uint64(buf)
 		fs[i] = math.Float64frombits(val)
 	}
-	return len(fs), nil
+
+	return numFloats, nil
 }
 
 // ReadFloat will read data from the underlying io.Reader until it has
@@ -139,7 +164,7 @@ func (r *Reader) ReadFloats(fs []float64) (int, error) {
 // reading, it returns 0 and that error. If no more values are
 // available, ReadFloat will return with err==io.EOF.
 func (r *Reader) ReadFloat() (float64, error) {
-	buf := make([]byte, 8)
+	buf := make([]byte, 8) // Allocated to stack
 	_, err := r.Read(buf)
 	if err != nil {
 		return 0, err
@@ -154,7 +179,7 @@ func (r *Reader) ReadFloat() (float64, error) {
 func (r *Reader) readBlockHeader() (b block, err error) {
 	// The first 6 bytes of the block describe the number of records and bytes
 	// in the block.
-	buf := make([]byte, 6)
+	buf := r.shortBuf[:6]
 	n, err := io.ReadFull(r.r, buf)
 	if n == 0 && err == io.EOF {
 		// No data available: This is a genuine EOF. We have no blocks left.
@@ -176,10 +201,16 @@ func (r *Reader) readBlockHeader() (b block, err error) {
 	// The 4-bit records are packed as pairs into bytes. If there are an odd
 	// number of records in the block, then the last 4-bit header is
 	// meaningless and can be discarded.
-	b.headers = make([]header, b.nRec)
+	if r.lastHeaders == nil || cap(r.lastHeaders) < b.nRec {
+		r.lastHeaders = make([]header, b.nRec)
+	}
+	b.headers = r.lastHeaders[:b.nRec]
 
 	// Read out the appropriate number of bytes.
-	buf = make([]byte, b.nRec/2)
+	if r.headersBuf == nil || cap(r.headersBuf) < b.nRec/2 {
+		r.headersBuf = make([]byte, b.nRec/2)
+	}
+	buf = r.headersBuf[:b.nRec/2]
 	n, err = io.ReadFull(r.r, buf)
 	if err != nil {
 		return b, err
@@ -215,7 +246,7 @@ func (r *Reader) readFromBlock(p []byte) (int, error) {
 		bytesDecoded int
 	)
 
-	b = make([]byte, 8) // records can be at most 8 bytes
+	b = r.shortBuf // records can be at most 8 bytes
 	for r.block.nRecRead < r.block.nRec && len(p) > 0 {
 		// Get as many bytes off the reader as the header says we should take.
 		h = r.block.headers[r.block.nRecRead]

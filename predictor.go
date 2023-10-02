@@ -10,6 +10,7 @@ const (
 type predictor interface {
 	predict() (predicted uint64)
 	update(actual uint64)
+	clear()
 }
 
 type fcm struct {
@@ -39,6 +40,11 @@ func (f *fcm) update(actual uint64) {
 	f.lastHash = f.hash(actual)
 }
 
+func (f *fcm) clear() {
+	clear(f.table)
+	f.lastHash = 0
+}
+
 type dfcm struct {
 	table     []uint64
 	size      uint64
@@ -66,4 +72,10 @@ func (d *dfcm) update(actual uint64) {
 	d.table[d.lastHash] = actual - d.lastValue
 	d.lastHash = d.hash(actual)
 	d.lastValue = actual
+}
+
+func (d *dfcm) clear() {
+	clear(d.table)
+	d.lastHash = 0
+	d.lastValue = 0
 }

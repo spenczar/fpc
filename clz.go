@@ -1,15 +1,8 @@
-// +build !amd64
-
 package fpc
 
+import "math/bits"
+
 func clzBytes(val uint64) uint64 {
-	if val == 0 {
-		return 8
-	}
-	var i uint64
-	// 'while top byte is zero'
-	for i = 0; val&0xFF00000000000000 == 0; i++ {
-		val <<= 8
-	}
-	return i
+	x := bits.LeadingZeros64(val)
+	return uint64(x / 8) // Integer division rounds down
 }
