@@ -57,10 +57,15 @@ func (w *Writer) Reset(writer io.Writer, level int) error {
 	if level < 1 || level > MaxCompression {
 		return fmt.Errorf("fpc: invalid compression level: %d", level)
 	}
+	if writer == nil {
+		return errors.New("fpc: nil writer")
+	}
 
 	// Need to flush out what we already have
-	if err := w.Flush(); err != nil {
-		return fmt.Errorf("fpc: error flushing existing writer: %v", err)
+	if w.w != nil {
+		if err := w.Flush(); err != nil {
+			return fmt.Errorf("fpc: error flushing existing writer: %v", err)
+		}
 	}
 
 	// Reset to the new writer
