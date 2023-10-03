@@ -23,7 +23,7 @@ func (ph pairHeader) encode() byte {
 	return (ph.h1.encode()<<4 | ph.h2.encode())
 }
 
-// header is a cotainer for the count of the number of non-zero bytes in an
+// header is a container for the count of the number of non-zero bytes in an
 // encoded value, and the type of predictor used to generate the encoded value
 type header struct {
 	len   uint8
@@ -41,10 +41,10 @@ func (h header) encode() byte {
 }
 
 type blockEncoder struct {
-	blockSize int // size of blocks in bytes
-
-	headers []byte
-	values  []byte
+	headers          []byte
+	values           []byte
+	buffer           []byte
+	compressionLevel uint
 
 	w   io.Writer // Destination for encoded bytes
 	enc *encoder  // Underlying machinery for encoding pairs of floats
@@ -55,19 +55,45 @@ type blockEncoder struct {
 	nBytes   int    // Count of bytes in this block
 }
 
-// type block struct {
-// 	header []byte
-// }
-
 func newBlockEncoder(w io.Writer, compression uint) *blockEncoder {
 	return &blockEncoder{
-		headers:  make([]byte, 0, maxRecordsPerBlock),
-		values:   make([]byte, 0, maxRecordsPerBlock*8),
-		w:        w,
-		enc:      newEncoder(compression),
-		last:     0,
-		nRecords: 0,
+		headers:          make([]byte, 0, maxRecordsPerBlock),
+		values:           make([]byte, 0, maxRecordsPerBlock*8),
+		compressionLevel: compression,
+		w:                w,
+		enc:              newEncoder(compression),
+		last:             0,
+		nRecords:         0,
 	}
+}
+
+// reset the encoder to use a new io.Writer and compression level.
+// This is faster and more efficient than creating a new encoder.
+func (b *blockEncoder) reset(w io.Writer, compression uint) error {
+	// Flush anything hanging around in the buffer
+	err := b.flush()
+	if err != nil {
+		return err
+	}
+
+	// The actual reset
+	b.headers = b.headers[:0]
+	b.values = b.values[:0]
+
+	// Only create a new encoder if we have to, otherwise re-use what we already have
+	if compression == b.compressionLevel {
+		b.enc.clear()
+	} else {
+		b.enc = newEncoder(compression)
+		b.compressionLevel = compression
+	}
+
+	b.w = w
+	b.last = 0
+	b.nRecords = 0
+	b.nBytes = 0
+
+	return nil
 }
 
 func (b *blockEncoder) encode(v uint64) error {
@@ -126,19 +152,23 @@ func (b *blockEncoder) flush() error {
 	}
 
 	// Reset buffer and counters
-	b.headers = make([]byte, 0, maxRecordsPerBlock)
-	b.values = make([]byte, 0, maxRecordsPerBlock)
+	b.headers = b.headers[:0]
+	b.values = b.values[:0]
 	b.nRecords = 0
 	b.nBytes = 0
 	return nil
 }
 
 func (b *blockEncoder) encodeBlock() []byte {
-	// The block header is layed out as two little-endian 24-bit unsigned
+	// The block header is laid out as two little-endian 24-bit unsigned
 	// integers. The first integer is the number of records in the block, and
 	// the second is the number of bytes.
 	nByte := len(b.headers) + len(b.values) + blockHeaderSize
-	block := make([]byte, 6, nByte)
+
+	if b.buffer == nil {
+		b.buffer = make([]byte, 6, nByte)
+	}
+	block := b.buffer[:6]
 
 	//First three bytes are the number of records in the block.
 	block[0] = byte(b.nRecords)
@@ -155,6 +185,8 @@ func (b *blockEncoder) encodeBlock() []byte {
 
 	// After the header is all the rest of the data.
 	block = append(block, b.values...)
+	b.buffer = block
+
 	return block
 }
 
@@ -173,6 +205,12 @@ func newEncoder(compression uint) *encoder {
 		fcm:  newFCM(tableSize),
 		dfcm: newDFCM(tableSize),
 	}
+}
+
+func (e *encoder) clear() {
+	clear(e.buf)
+	e.fcm.clear()
+	e.dfcm.clear()
 }
 
 // compute the difference between v and the best predicted value; return that

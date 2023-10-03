@@ -22,3 +22,16 @@ func TestWriter(t *testing.T) {
 		tc.AssertEqual(t, have.Bytes(), tc.compressed, "Writer")
 	}
 }
+
+// Should not panic resetting a writer that initially had a nil underlying writer
+func TestWriter_Reset_ExistingWriterNil(t *testing.T) {
+	w, err := NewWriterLevel(nil, 1)
+	if err != nil {
+		t.Fatalf("NewWriterLevel err=%q", err)
+	}
+
+	err = w.Reset(new(bytes.Buffer), 1)
+	if err != nil {
+		t.Fatalf("Reset err=%q", err)
+	}
+}

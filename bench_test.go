@@ -2,17 +2,16 @@ package fpc
 
 import (
 	"bytes"
-	"io/ioutil"
-	"math"
+	"io"
 	"math/rand"
 	"testing"
 )
 
-func generateValues(n int) []uint64 {
-	vals := make([]uint64, n)
+func generateValues(n int) []float64 {
+	vals := make([]float64, n)
 	// generate up to 1M random values
 	for i := range vals {
-		vals[i] = math.Float64bits(rand.ExpFloat64())
+		vals[i] = rand.ExpFloat64()
 	}
 	return vals
 }
@@ -24,8 +23,47 @@ func min(x, y int) int {
 	return x
 }
 
+func BenchmarkLargeEncode(b *testing.B) {
+	data := generateValues(50000)
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.SetBytes(50000 * 8 * 100)
+
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < 100; i++ {
+			w := io.Discard
+			e := newBlockEncoder(w, DefaultCompression)
+			for _, v := range data {
+				e.encodeFloat(v)
+			}
+			e.flush()
+		}
+	}
+}
+
+func BenchmarkLargeEncodeReuse(b *testing.B) {
+	data := generateValues(50000)
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.SetBytes(50000 * 8 * 100)
+
+	w := io.Discard
+	e := newBlockEncoder(w, DefaultCompression)
+
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < 100; i++ {
+			e.reset(w, DefaultCompression)
+
+			for _, v := range data {
+				e.encodeFloat(v)
+			}
+			e.flush()
+		}
+	}
+}
+
 func BenchmarkBlockEncode(b *testing.B) {
-	w := ioutil.Discard
+	w := io.Discard
 	e := newBlockEncoder(w, DefaultCompression)
 	e.enc.fcm = &mockPredictor{0xFABF}
 	e.enc.dfcm = &mockPredictor{0xFABF}
@@ -111,32 +149,74 @@ var benchcase = reftestcase{
 }
 
 func BenchmarkReadFloat(b *testing.B) {
-	b.SetBytes(int64(len(benchcase.compressed)))
-	in := bytes.NewBuffer(benchcase.compressed)
+	b.ReportAllocs()
+	b.SetBytes(8)
 
-	r := NewReader(in)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		r := NewReader(bytes.NewReader(benchcase.compressed))
 		r.ReadFloat()
 	}
 }
 
 func BenchmarkReadFloats(b *testing.B) {
+	b.ReportAllocs()
 	b.SetBytes(int64(len(benchcase.compressed)))
-	in := bytes.NewBuffer(benchcase.compressed)
 	out := make([]float64, len(benchcase.uncompressed))
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		r := NewReader(in)
+		r := NewReader(bytes.NewReader(benchcase.compressed))
 		r.ReadFloats(out)
-		in.Reset()
+	}
+}
+
+func BenchmarkReadFloatsReuse(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(benchcase.compressed)))
+	out := make([]float64, len(benchcase.uncompressed))
+
+	b.ResetTimer()
+	r := NewReader(bytes.NewReader(benchcase.compressed))
+	for i := 0; i < b.N; i++ {
+		r.Reset(bytes.NewReader(benchcase.compressed))
+		r.ReadFloats(out)
+	}
+}
+
+func BenchmarkReadFloatsRepeated(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(benchcase.compressed)) * 100)
+	out := make([]float64, len(benchcase.uncompressed))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 100; j++ {
+			r := NewReader(bytes.NewReader(benchcase.compressed))
+			r.ReadFloats(out)
+		}
+	}
+}
+
+func BenchmarkReadFloatsRepeatedReuse(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(benchcase.compressed)) * 100)
+	out := make([]float64, len(benchcase.uncompressed))
+
+	b.ResetTimer()
+	r := NewReader(bytes.NewReader(benchcase.compressed))
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 100; j++ {
+			r.Reset(bytes.NewReader(benchcase.compressed))
+			r.ReadFloats(out)
+		}
 	}
 }
 
 func BenchmarkWriter(b *testing.B) {
+	b.ReportAllocs()
 	b.SetBytes(int64(len(benchcase.uncompressed) * 8))
-	w, _ := NewWriterLevel(ioutil.Discard, int(benchcase.comp))
+	w, _ := NewWriterLevel(io.Discard, int(benchcase.comp))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w.WriteFloat(benchcase.uncompressed[i%len(benchcase.uncompressed)])

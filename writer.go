@@ -53,6 +53,29 @@ func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
 	return z, nil
 }
 
+func (w *Writer) Reset(writer io.Writer, level int) error {
+	if level < 1 || level > MaxCompression {
+		return fmt.Errorf("fpc: invalid compression level: %d", level)
+	}
+	if writer == nil {
+		return errors.New("fpc: nil writer")
+	}
+
+	// Need to flush out what we already have
+	if w.w != nil {
+		if err := w.Flush(); err != nil {
+			return fmt.Errorf("fpc: error flushing existing writer: %v", err)
+		}
+	}
+
+	// Reset to the new writer
+	w.w = writer
+	w.level = level
+	w.wroteHeader = false
+	w.closed = false
+	return w.enc.reset(writer, uint(level))
+}
+
 // Write interprets b as a stream of byte-encoded, 64-bit IEEE 754
 // floating point values. The length of b must be a multiple of 8 in
 // order to match this expectation.

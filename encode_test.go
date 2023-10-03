@@ -6,9 +6,15 @@ import (
 )
 
 func TestBlockEncoder(t *testing.T) {
+	buf := new(bytes.Buffer)
+	e := newBlockEncoder(buf, DefaultCompression)
+
 	for i, tc := range refTests {
-		buf := new(bytes.Buffer)
-		e := newBlockEncoder(buf, tc.comp)
+		if err := e.reset(buf, tc.comp); err != nil {
+			t.Fatalf("reset err=%q", err)
+		}
+		buf.Reset()
+
 		for _, v := range tc.uncompressed {
 			if err := e.encodeFloat(v); err != nil {
 				t.Fatalf("encode err=%q", err)
@@ -120,10 +126,10 @@ func TestEncodeNonzero(t *testing.T) {
 	}{
 		{
 			in: input{
-				val: []byte{0xFF, 0, 0, 0, 0, 0, 0, 0XFF},
+				val: []byte{0xFF, 0, 0, 0, 0, 0, 0, 0xFF},
 				len: 8,
 			},
-			want: []byte{0xFF, 0, 0, 0, 0, 0, 0, 0XFF},
+			want: []byte{0xFF, 0, 0, 0, 0, 0, 0, 0xFF},
 		},
 		{
 			in: input{
@@ -148,8 +154,10 @@ func TestEncodeNonzero(t *testing.T) {
 		},
 	}
 
+	e := newEncoder(DefaultCompression)
+
 	for i, tc := range testcases {
-		e := newEncoder(DefaultCompression)
+		e.clear()
 		have := make([]byte, tc.in.len)
 		e.encodeNonzero(byteOrder.Uint64(tc.in.val), tc.in.len, have)
 		if !bytes.Equal(have, tc.want) {
@@ -193,8 +201,11 @@ func TestPairEncode(t *testing.T) {
 				"11111111",
 		},
 	}
+
+	e := newEncoder(DefaultCompression)
+
 	for i, tc := range testcases {
-		e := newEncoder(DefaultCompression)
+		e.clear()
 		e.fcm = &mockPredictor{0}
 		e.dfcm = &mockPredictor{0}
 		haveHeader, haveData := e.encode(byteOrder.Uint64(tc.v1), byteOrder.Uint64(tc.v2))
@@ -214,3 +225,4 @@ type mockPredictor struct {
 
 func (p *mockPredictor) predict() uint64 { return p.val }
 func (p *mockPredictor) update(uint64)   {}
+func (p *mockPredictor) clear()          {}
